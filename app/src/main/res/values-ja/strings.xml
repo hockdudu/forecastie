@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">Forecastie</string>
 
-    <string name="action_search">検索</string>
     <string name="action_refresh">更新</string>
     <string name="action_settings">設定</string>
     <string name="action_about">アプリについて</string>

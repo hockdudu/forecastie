@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">Forecastie</string>
 
-    <string name="action_search">Ara</string>
     <string name="action_refresh">Yenile</string>
     <string name="action_settings">Ayarlar</string>
     <string name="action_about">Hakkinda</string>

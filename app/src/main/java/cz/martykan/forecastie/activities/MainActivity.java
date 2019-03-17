@@ -29,9 +29,11 @@ import android.support.design.widget.TabLayout;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.GravityCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.Toolbar;
 import android.text.InputType;
@@ -58,6 +60,7 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import cz.martykan.forecastie.AlarmReceiver;
 import cz.martykan.forecastie.Constants;
@@ -158,11 +161,18 @@ public class MainActivity extends BaseActivity implements LocationListener {
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         AppBarLayout appBarLayout = findViewById(R.id.appBarLayout);
 
+        // TODO: IT HURTS, PLEASE USE SOMETHING ELSE, ANYTHING BUT THIS
         progressDialog = new ProgressDialog(MainActivity.this);
 
         // Load toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        @NonNull
+        ActionBar actionBar = Objects.requireNonNull(getSupportActionBar());
+        actionBar.setDisplayHomeAsUpEnabled(true);
+        actionBar.setHomeAsUpIndicator(R.drawable.ic_menu);;
+
         if (darkTheme) {
             toolbar.setPopupTheme(R.style.AppTheme_PopupOverlay_Dark);
         } else if (blackTheme) {
@@ -211,7 +221,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         // Set autoupdater
         AlarmReceiver.setRecurringAlarm(this);
 
-
+        // TODO: Only set refreshing false when it's done
         swipeRefreshLayout.setOnRefreshListener(() -> {
             refreshWeather();
             swipeRefreshLayout.setRefreshing(false);
@@ -711,36 +721,36 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
+        switch (item.getItemId()) {
+            case android.R.id.home:
+                drawerLayout.openDrawer(GravityCompat.START);
+                return true;
+            case R.id.action_refresh:
+                refreshWeather();
+                return true;
+            case R.id.action_map: {
+                Intent intent = new Intent(MainActivity.this, MapActivity.class);
+                startActivity(intent);
+                return true;
+            }
+            case R.id.action_graphs: {
+                Intent intent = new Intent(MainActivity.this, GraphActivity.class);
+                startActivity(intent);
+                return true;
+            }
+            case R.id.action_location:
+                getCityByLocation();
+                return true;
+            case R.id.action_settings: {
+                Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+            }
+            case R.id.action_about:
+                aboutDialog();
+                return true;
+        }
 
-        if (id == R.id.action_refresh) {
-            refreshWeather();
-            return true;
-        }
-        if (id == R.id.action_map) {
-            Intent intent = new Intent(MainActivity.this, MapActivity.class);
-            startActivity(intent);
-        }
-        if (id == R.id.action_graphs) {
-            Intent intent = new Intent(MainActivity.this, GraphActivity.class);
-            startActivity(intent);
-        }
-        if (id == R.id.action_search) {
-            searchCities();
-            return true;
-        }
-        if (id == R.id.action_location) {
-            getCityByLocation();
-            return true;
-        }
-        if (id == R.id.action_settings) {
-            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-            startActivity(intent);
-        }
-        if (id == R.id.action_about) {
-            aboutDialog();
-            return true;
-        }
         return super.onOptionsItemSelected(item);
     }
 

@@ -112,6 +112,7 @@ public class UnitConvertor {
         }
     }
 
+    // TODO: Make this translatable
     public static String convertUvIndexToRiskLevel(double value) {
         /* based on: https://en.wikipedia.org/wiki/Ultraviolet_index */
         if (value < 0) {

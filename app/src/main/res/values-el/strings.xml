@@ -4,7 +4,6 @@
     <string name="action_about">Σχετικά</string>
     <string name="action_graphs">Γράφημα</string>
     <string name="action_refresh">Ανανέωση</string>
-    <string name="action_search">Αναζήτηση</string>
     <string name="action_settings">Ρυθμίσεις</string>
     <string name="action_weather_map">Χάρτης Καιρού</string>
     <string name="dash_clock_expanded_body">"%1$s, %2$s Wind: %3$s %4$s Pressure: %5$s %6$s Humidity: %7$s %% "</string>

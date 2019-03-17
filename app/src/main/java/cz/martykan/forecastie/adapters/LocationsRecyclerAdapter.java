@@ -48,7 +48,7 @@ public class LocationsRecyclerAdapter extends RecyclerView.Adapter<LocationsRecy
         Weather weather = weatherArrayList.get(position);
 
         holder.cityTextView.setText(weather.getCity().toString());
-        holder.temperatureTextView.setText(weather.getTemperature());
+        holder.temperatureTextView.setText(weather.getTemperature()); // TODO: Use other temperature than Kelvin
         holder.descriptionTextView.setText(weather.getDescription());
         holder.iconTextView.setText(weather.getIcon());
         holder.iconTextView.setTypeface(weatherFont);

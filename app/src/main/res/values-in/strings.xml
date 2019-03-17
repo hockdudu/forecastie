@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name">Forecastie</string>
 
-    <string name="action_search">Pencarian</string>
     <string name="action_refresh">Segarkan</string>
     <string name="action_settings">Pengaturan</string>
     <string name="action_about">Tentang</string>
