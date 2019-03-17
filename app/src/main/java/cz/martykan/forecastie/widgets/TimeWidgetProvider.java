@@ -66,7 +66,7 @@ public class TimeWidgetProvider extends AbstractWidgetProvider {
 
             remoteViews.setTextViewText(R.id.time, timeFormat.format(new Date()));
             remoteViews.setTextViewText(R.id.date, dateString);
-            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity() + ", " + widgetWeather.getCountry());
+            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity().toString());
             remoteViews.setTextViewText(R.id.widgetTemperature, widgetWeather.getTemperature());
             remoteViews.setTextViewText(R.id.widgetDescription, widgetWeather.getDescription());
             remoteViews.setImageViewBitmap(R.id.widgetIcon, getWeatherIcon(widgetWeather.getIcon(), context));

@@ -50,7 +50,7 @@ public class ExtensiveWidgetProvider extends AbstractWidgetProvider {
 
             DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(context);
 
-            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity() + ", " + widgetWeather.getCountry());
+            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity().toString());
             remoteViews.setTextViewText(R.id.widgetTemperature, widgetWeather.getTemperature());
             remoteViews.setTextViewText(R.id.widgetDescription, widgetWeather.getDescription());
             remoteViews.setTextViewText(R.id.widgetWind, widgetWeather.getWind());

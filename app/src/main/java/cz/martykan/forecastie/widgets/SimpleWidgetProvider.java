@@ -11,6 +11,7 @@ import android.widget.RemoteViews;
 import cz.martykan.forecastie.AlarmReceiver;
 import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
+import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
 
 public class SimpleWidgetProvider extends AbstractWidgetProvider {
@@ -45,7 +46,7 @@ public class SimpleWidgetProvider extends AbstractWidgetProvider {
                 return;
             }
 
-            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity() + ", " + widgetWeather.getCountry());
+            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity().toString());
             remoteViews.setTextViewText(R.id.widgetTemperature, widgetWeather.getTemperature());
             remoteViews.setTextViewText(R.id.widgetDescription, widgetWeather.getDescription());
             remoteViews.setImageViewBitmap(R.id.widgetIcon, getWeatherIcon(widgetWeather.getIcon(), context));

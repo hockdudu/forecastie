@@ -1,12 +1,15 @@
 package cz.martykan.forecastie.activities;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
+import android.arch.lifecycle.LiveData;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.location.Location;
 import android.location.LocationListener;
@@ -17,6 +20,9 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.constraint.ConstraintLayout;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
@@ -24,6 +30,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewPager;
+import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.Toolbar;
@@ -33,12 +40,15 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -54,9 +64,15 @@ import cz.martykan.forecastie.Constants;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.adapters.ViewPagerAdapter;
 import cz.martykan.forecastie.adapters.WeatherRecyclerAdapter;
+import cz.martykan.forecastie.database.AppDatabase;
+import cz.martykan.forecastie.database.CityDao;
+import cz.martykan.forecastie.database.CityRepository;
+import cz.martykan.forecastie.database.WeatherDao;
+import cz.martykan.forecastie.database.WeatherRepository;
 import cz.martykan.forecastie.fragments.AboutDialogFragment;
 import cz.martykan.forecastie.fragments.AmbiguousLocationDialogFragment;
 import cz.martykan.forecastie.fragments.RecyclerViewFragment;
+import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.tasks.GenericRequestTask;
 import cz.martykan.forecastie.tasks.ParseResult;
@@ -66,6 +82,9 @@ import cz.martykan.forecastie.utils.UI;
 import cz.martykan.forecastie.utils.UnitConvertor;
 import cz.martykan.forecastie.widgets.AbstractWidgetProvider;
 import cz.martykan.forecastie.widgets.DashClockWeatherExtension;
+
+import static cz.martykan.forecastie.utils.JsonParser.convertJsonToCity;
+import static cz.martykan.forecastie.utils.JsonParser.convertJsonToWeather;
 
 public class MainActivity extends BaseActivity implements LocationListener {
     protected static final int MY_PERMISSIONS_ACCESS_FINE_LOCATION = 1;
@@ -77,7 +96,8 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private static Map<String, Integer> pressUnits = new HashMap<>(3);
     private static boolean mappingsInitialised = false;
 
-    private Weather todayWeather = new Weather();
+    @Nullable
+    private Weather todayWeather;
 
     private TextView todayTemperature;
     private TextView todayDescription;
@@ -92,8 +112,12 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private ViewPager viewPager;
     private TabLayout tabLayout;
     private SwipeRefreshLayout swipeRefreshLayout;
+    private LinearLayout sidebarDrawer;
+    private DrawerLayout drawerLayout;
 
     private View appView;
+
+    Typeface weatherFont;
 
     private LocationManager locationManager;
     private ProgressDialog progressDialog;
@@ -109,6 +133,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
     public String recentCityId = "";
 
     private Formatting formatting;
+
+    private AppDatabase appDatabase;
+    private WeatherRepository weatherRepository;
+    private CityRepository cityRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -133,7 +161,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         progressDialog = new ProgressDialog(MainActivity.this);
 
         // Load toolbar
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (darkTheme) {
             toolbar.setPopupTheme(R.style.AppTheme_PopupOverlay_Dark);
@@ -141,23 +169,35 @@ public class MainActivity extends BaseActivity implements LocationListener {
             toolbar.setPopupTheme(R.style.AppTheme_PopupOverlay_Black);
         }
 
+        drawerLayout = findViewById(R.id.drawerLayout);
+
+        // Saves an instance of the database
+        appDatabase = AppDatabase.getDatabase(this);
+        weatherRepository = new WeatherRepository(appDatabase.weatherDao(), appDatabase.cityDao(), this);
+        cityRepository = new CityRepository(appDatabase.cityDao(), this);
+
+        // Initializes drawer
+        LinearLayout drawerContainer = findViewById(R.id.drawerContainer);
+        sidebarDrawer = (LinearLayout) getLayoutInflater().inflate(R.layout.fragment_drawer, drawerContainer);
+        initializeDrawer();
+
         // Initialize textboxes
-        todayTemperature = (TextView) findViewById(R.id.todayTemperature);
-        todayDescription = (TextView) findViewById(R.id.todayDescription);
-        todayWind = (TextView) findViewById(R.id.todayWind);
-        todayPressure = (TextView) findViewById(R.id.todayPressure);
-        todayHumidity = (TextView) findViewById(R.id.todayHumidity);
-        todaySunrise = (TextView) findViewById(R.id.todaySunrise);
-        todaySunset = (TextView) findViewById(R.id.todaySunset);
-        todayUvIndex = (TextView) findViewById(R.id.todayUvIndex);
-        lastUpdate = (TextView) findViewById(R.id.lastUpdate);
-        todayIcon = (TextView) findViewById(R.id.todayIcon);
-        Typeface weatherFont = Typeface.createFromAsset(this.getAssets(), "fonts/weather.ttf");
+        todayTemperature = findViewById(R.id.todayTemperature);
+        todayDescription = findViewById(R.id.todayDescription);
+        todayWind = findViewById(R.id.todayWind);
+        todayPressure = findViewById(R.id.todayPressure);
+        todayHumidity = findViewById(R.id.todayHumidity);
+        todaySunrise = findViewById(R.id.todaySunrise);
+        todaySunset = findViewById(R.id.todaySunset);
+        todayUvIndex = findViewById(R.id.todayUvIndex);
+        lastUpdate = findViewById(R.id.lastUpdate);
+        todayIcon = findViewById(R.id.todayIcon);
+        weatherFont = Typeface.createFromAsset(this.getAssets(), "fonts/weather.ttf");
         todayIcon.setTypeface(weatherFont);
 
         // Initialize viewPager
-        viewPager = (ViewPager) findViewById(R.id.viewPager);
-        tabLayout = (TabLayout) findViewById(R.id.tabs);
+        viewPager = findViewById(R.id.viewPager);
+        tabLayout = findViewById(R.id.tabs);
 
         destroyed = false;
 
@@ -172,20 +212,14 @@ public class MainActivity extends BaseActivity implements LocationListener {
         AlarmReceiver.setRecurringAlarm(this);
 
 
-        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                refreshWeather();
-                swipeRefreshLayout.setRefreshing(false);
-            }
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            refreshWeather();
+            swipeRefreshLayout.setRefreshing(false);
         });
 
-        appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
-            @Override
-            public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset) {
-                // Only allow pull to refresh when scrolled to top
-                swipeRefreshLayout.setEnabled(verticalOffset == 0);
-            }
+        appBarLayout.addOnOffsetChangedListener((appBarLayout1, verticalOffset) -> {
+            // Only allow pull to refresh when scrolled to top
+            swipeRefreshLayout.setEnabled(verticalOffset == 0);
         });
 
         Bundle bundle = getIntent().getExtras();
@@ -246,36 +280,94 @@ public class MainActivity extends BaseActivity implements LocationListener {
         }
     }
 
-    private void preloadUVIndex() {
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+    private void initializeDrawer() {
+        View bottomButtons = sidebarDrawer.findViewById(R.id.bottomButtons);
+        bottomButtons.setOnClickListener(v -> {
+            drawerLayout.closeDrawers();
+            searchCities();
+        });
 
-        String lastUVIToday = sp.getString("lastToday", "");
-        if (!lastUVIToday.isEmpty()) {
-            double latitude = todayWeather.getLat();
-            double longitude = todayWeather.getLon();
-            if (latitude == 0 && longitude == 0) {
-                return;
+        ImageView searchIcon = sidebarDrawer.findViewById(R.id.searchIcon);
+        TextView addLocationText = sidebarDrawer.findViewById(R.id.addLocation);
+        searchIcon.setColorFilter(addLocationText.getCurrentTextColor(), PorterDuff.Mode.SRC_IN);
+
+        LiveData<List<City>> citiesLiveData = cityRepository.getCities();
+        citiesLiveData.observe(this, cities -> {
+            assert cities != null;
+
+            LinearLayout citiesList = sidebarDrawer.findViewById(R.id.citiesList);
+            for (int i = 0; i < cities.size(); i++) {
+                City city = cities.get(i);
+                ConstraintLayout drawerItem = (ConstraintLayout) getLayoutInflater().inflate(R.layout.fragment_drawer_item, null);
+                citiesList.addView(drawerItem);
+
+                TextView weatherIcon = drawerItem.findViewById(R.id.weatherIcon);
+                weatherIcon.setTypeface(weatherFont);
+
+                TextView cityName = drawerItem.findViewById(R.id.cityName);
+                cityName.setText(city.toString());
+
+                LiveData<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city);
+
+                weatherLiveData.observe(this, weather -> {
+                    assert weather != null;
+                    weatherIcon.setText(weather.getIcon());
+                });
+
+                drawerItem.setOnClickListener(v -> {
+                    drawerLayout.closeDrawers();
+                    saveLocation(city);
+                    refreshWeather();
+                });
             }
+        });
+    }
+
+    private void preloadUVIndex() {
+        if (todayWeather != null) {
+            double latitude = todayWeather.getCity().getLat();
+            double longitude = todayWeather.getCity().getLon();
+
             new TodayUVITask(this, this, progressDialog).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, "coords", Double.toString(latitude), Double.toString(longitude));
         }
     }
 
     private void preloadWeather() {
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
 
-        String lastToday = sp.getString("lastToday", "");
-        if (!lastToday.isEmpty()) {
-            new TodayWeatherTask(this, this, progressDialog).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, "cachedResponse", lastToday);
-        }
-        String lastLongterm = sp.getString("lastLongterm", "");
-        if (!lastLongterm.isEmpty()) {
-            new LongTermWeatherTask(this, this, progressDialog).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, "cachedResponse", lastLongterm);
-        }
+        LiveData<List<City>> citiesLiveData = cityRepository.getCities();
+        citiesLiveData.observe(this, cities -> {
+            assert cities != null;
+
+            City city;
+            // TODO: This is FAR from a good fix
+            if (cities.size() == 0) {
+                city = new City();
+                city.setId(2643743);
+                city.setCity("London");
+                city.setCountry("GB");
+                city.setLat(51.5073);
+                city.setLon(-0.1277);
+            } else {
+                city = cities.get(0);
+            }
+
+            LiveData<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city);
+            weatherLiveData.observe(this, weather -> {
+                todayWeather = weather;
+                updateTodayWeatherUI();
+            });
+        });
     }
 
-    private void getTodayUVIndex() {
-        double latitude = todayWeather.getLat();
-        double longitude = todayWeather.getLon();
+    private void getTodayUVIndex() { // TODO: Fix this, maybe hide if null?
+        double latitude = 0;
+        double longitude = 0;
+
+        if (todayWeather != null) {
+            latitude = todayWeather.getCity().getLat();
+            longitude = todayWeather.getCity().getLon();
+        }
+
         new TodayUVITask(this, this, progressDialog).execute("coords", Double.toString(latitude), Double.toString(longitude));
     }
 
@@ -287,6 +379,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         new LongTermWeatherTask(this, this, progressDialog).execute();
     }
 
+    @SuppressLint("RestrictedApi")
     private void searchCities() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
         alert.setTitle(this.getString(R.string.search_title));
@@ -296,31 +389,50 @@ public class MainActivity extends BaseActivity implements LocationListener {
         input.setSingleLine(true);
         alert.setView(input, 32, 0, 32, 0);
 
-        alert.setPositiveButton(R.string.dialog_ok, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                String result = input.getText().toString();
-                if (!result.isEmpty()) {
-                    new FindCitiesByNameTask(getApplicationContext(),
-                            MainActivity.this, progressDialog).execute("city", result);
-                }
+        alert.setPositiveButton(R.string.dialog_ok, (dialog, whichButton) -> {
+            String result = input.getText().toString();
+            if (!result.isEmpty()) {
+                LiveData<List<Weather>> cities = cityRepository.searchCity(result.trim());
+                cities.observe(this, citiesList -> {
+                    assert citiesList != null;
+
+                    if (citiesList.size() == 0) {
+                        Log.e("Geolocation", "No city found");
+                        // TODO: We cant return it here, do something else
+                        // return ParseResult.CITY_NOT_FOUND;
+                    } else if (citiesList.size() == 1) {
+                        saveLocation(citiesList.get(0).getCity());
+                    } else {
+                        launchLocationPickerDialog(citiesList);
+                    }
+                });
             }
         });
-        alert.setNegativeButton(R.string.dialog_cancel, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                // Cancelled
-            }
+        alert.setNegativeButton(R.string.dialog_cancel, (dialog, whichButton) -> {
+            // Cancelled
         });
         alert.show();
     }
 
-    private void saveLocation(String result) {
+    private void saveLocation(City city) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-        recentCityId = preferences.getString("cityId", Constants.DEFAULT_CITY_ID);
 
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putString("cityId", result);
+        CityDao cityDao = appDatabase.cityDao();
 
-        editor.commit();
+        Runnable runnable = () -> {
+            if (cityDao.findById(city.getId()) == null) {
+                cityDao.insertAll(city);
+            }
+
+            recentCityId = preferences.getString("cityId", Constants.DEFAULT_CITY_ID);
+
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putString("cityId", String.valueOf(city.getId()));
+
+            editor.apply();
+        };
+
+        new Thread(runnable).start();
 
 //        if (!recentCityId.equals(result)) {
 //            // New location, update weather
@@ -330,19 +442,17 @@ public class MainActivity extends BaseActivity implements LocationListener {
 //        }
     }
 
-    private void aboutDialog() {
-        new AboutDialogFragment().show(getSupportFragmentManager(), null);
+    private void saveLocation(int cityId, String cityName, String country) {
+        City city = new City();
+        city.setId(cityId);
+        city.setCity(cityName);
+        city.setCountry(country);
+
+        saveLocation(city);
     }
 
-    public static String getRainString(JSONObject rainObj) {
-        String rain = "0";
-        if (rainObj != null) {
-            rain = rainObj.optString("3h", "fail");
-            if ("fail".equals(rain)) {
-                rain = rainObj.optString("1h", "0");
-            }
-        }
-        return rain;
+    private void aboutDialog() {
+        new AboutDialogFragment().show(getSupportFragmentManager(), null);
     }
 
     private ParseResult parseTodayJson(String result) {
@@ -354,61 +464,21 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 return ParseResult.CITY_NOT_FOUND;
             }
 
-            String city = reader.getString("name");
-            String country = "";
-            JSONObject countryObj = reader.optJSONObject("sys");
-            if (countryObj != null) {
-                country = countryObj.getString("country");
-                todayWeather.setSunrise(countryObj.getString("sunrise"));
-                todayWeather.setSunset(countryObj.getString("sunset"));
-            }
-            todayWeather.setCity(city);
-            todayWeather.setCountry(country);
+            City city = convertJsonToCity(reader);
 
-            JSONObject coordinates = reader.getJSONObject("coord");
-            if (coordinates != null) {
-                todayWeather.setLat(coordinates.getDouble("lat"));
-                todayWeather.setLon(coordinates.getDouble("lon"));
-                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
-                sp.edit().putFloat("latitude", (float) todayWeather.getLat()).putFloat("longitude", (float) todayWeather.getLon()).commit();
-            }
+            // TODO: It shouldn't be saved globally
+            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
+            sp.edit().putFloat("latitude", (float) city.getLat()).putFloat("longitude", (float) city.getLon()).apply();
 
-            JSONObject main = reader.getJSONObject("main");
+            todayWeather = convertJsonToWeather(reader, city, formatting, true);
 
-            todayWeather.setTemperature(main.getString("temp"));
-            todayWeather.setDescription(reader.getJSONArray("weather").getJSONObject(0).getString("description"));
-            JSONObject windObj = reader.getJSONObject("wind");
-            todayWeather.setWind(windObj.getString("speed"));
-            if (windObj.has("deg")) {
-                todayWeather.setWindDirectionDegree(windObj.getDouble("deg"));
-            } else {
-                Log.e("parseTodayJson", "No wind direction available");
-                todayWeather.setWindDirectionDegree(null);
-            }
-            todayWeather.setPressure(main.getString("pressure"));
-            todayWeather.setHumidity(main.getString("humidity"));
-
-            JSONObject rainObj = reader.optJSONObject("rain");
-            String rain;
-            if (rainObj != null) {
-                rain = getRainString(rainObj);
-            } else {
-                JSONObject snowObj = reader.optJSONObject("snow");
-                if (snowObj != null) {
-                    rain = getRainString(snowObj);
-                } else {
-                    rain = "0";
-                }
-            }
-            todayWeather.setRain(rain);
-
-            final String idString = reader.getJSONArray("weather").getJSONObject(0).getString("id");
-            todayWeather.setId(idString);
-            todayWeather.setIcon(formatting.setWeatherIcon(Integer.parseInt(idString), Calendar.getInstance().get(Calendar.HOUR_OF_DAY)));
+            WeatherDao weatherDao = appDatabase.weatherDao();
+            long id = weatherDao.insert(todayWeather);
+            todayWeather.setUid(id);
 
             SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
             editor.putString("lastToday", result);
-            editor.commit();
+            editor.apply();
 
         } catch (JSONException e) {
             Log.e("JSONException Data", result);
@@ -420,6 +490,11 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     private ParseResult parseTodayUVIJson(String result) {
+        // TODO: Do something else than simply return OK?
+        if (todayWeather == null) {
+            return ParseResult.OK;
+        }
+
         try {
             JSONObject reader = new JSONObject(result);
 
@@ -433,7 +508,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
             todayWeather.setUvIndex(value);
             SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
             editor.putString("lastUVIToday", result);
-            editor.commit();
+            editor.apply();
         } catch (JSONException e) {
             Log.e("JSONException Data", result);
             e.printStackTrace();
@@ -443,20 +518,17 @@ public class MainActivity extends BaseActivity implements LocationListener {
         return ParseResult.OK;
     }
 
+    // TODO: Check why this is called twice
     private void updateTodayWeatherUI() {
-        try {
-            if (todayWeather.getCountry().isEmpty()) {
-                preloadWeather();
-                return;
-            }
-        } catch (Exception e) {
+        if (todayWeather == null) { // If it wasn't initialized yet
             preloadWeather();
             return;
         }
-        String city = todayWeather.getCity();
-        String country = todayWeather.getCountry();
+
         DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(getApplicationContext());
-        getSupportActionBar().setTitle(city + (country.isEmpty() ? "" : ", " + country));
+        // TODO: Fix inspection
+        //noinspection ConstantConditions
+        getSupportActionBar().setTitle(todayWeather.getCity().toString());
 
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
 
@@ -483,6 +555,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         // Pressure
         double pressure = UnitConvertor.convertPressure((float) Double.parseDouble(todayWeather.getPressure()), sp);
 
+        // TODO: OMG FIX THIS HUGE MESS
         todayTemperature.setText(new DecimalFormat("0.#").format(temperature) + " " + sp.getString("unit", "°C"));
         todayDescription.setText(todayWeather.getDescription().substring(0, 1).toUpperCase() +
                 todayWeather.getDescription().substring(1) + rainString);
@@ -502,21 +575,15 @@ public class MainActivity extends BaseActivity implements LocationListener {
         todaySunset.setText(getString(R.string.sunset) + ": " + timeFormat.format(todayWeather.getSunset()));
         todayIcon.setText(todayWeather.getIcon());
 
-        todayIcon.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, GraphActivity.class);
-                startActivity(intent);
-            }
+        todayIcon.setOnClickListener(view -> {
+            Intent intent = new Intent(MainActivity.this, GraphActivity.class);
+            startActivity(intent);
         });
     }
 
     private void updateUVIndexUI() {
-        try {
-            if (todayWeather.getCountry().isEmpty()) {
-                return;
-            }
-        } catch (Exception e) {
+        // TODO: This doesn't do anything, as preloadUVIndex verifies if weather is null, FIX IT
+        if (todayWeather == null) { // If it wasn't initialized yet
             preloadUVIndex();
             return;
         }
@@ -545,57 +612,25 @@ public class MainActivity extends BaseActivity implements LocationListener {
             longTermTodayWeather = new ArrayList<>();
             longTermTomorrowWeather = new ArrayList<>();
 
+            Calendar today = Calendar.getInstance();
+            today.set(Calendar.HOUR_OF_DAY, 0);
+            today.set(Calendar.MINUTE, 0);
+            today.set(Calendar.SECOND, 0);
+            today.set(Calendar.MILLISECOND, 0);
+
+            Calendar tomorrow = (Calendar) today.clone();
+            tomorrow.add(Calendar.DAY_OF_YEAR, 1);
+
+            Calendar later = (Calendar) today.clone();
+            later.add(Calendar.DAY_OF_YEAR, 2);
+
+            City city = convertJsonToCity(reader);
+
             JSONArray list = reader.getJSONArray("list");
             for (i = 0; i < list.length(); i++) {
-                Weather weather = new Weather();
-
-                JSONObject listItem = list.getJSONObject(i);
-                JSONObject main = listItem.getJSONObject("main");
-
-                weather.setDate(listItem.getString("dt"));
-                weather.setTemperature(main.getString("temp"));
-                weather.setDescription(listItem.optJSONArray("weather").getJSONObject(0).getString("description"));
-                JSONObject windObj = listItem.optJSONObject("wind");
-                if (windObj != null) {
-                    weather.setWind(windObj.getString("speed"));
-                    weather.setWindDirectionDegree(windObj.getDouble("deg"));
-                }
-                weather.setPressure(main.getString("pressure"));
-                weather.setHumidity(main.getString("humidity"));
-
-                JSONObject rainObj = listItem.optJSONObject("rain");
-                String rain = "";
-                if (rainObj != null) {
-                    rain = getRainString(rainObj);
-                } else {
-                    JSONObject snowObj = listItem.optJSONObject("snow");
-                    if (snowObj != null) {
-                        rain = getRainString(snowObj);
-                    } else {
-                        rain = "0";
-                    }
-                }
-                weather.setRain(rain);
-
-                final String idString = listItem.optJSONArray("weather").getJSONObject(0).getString("id");
-                weather.setId(idString);
-
-                final String dateMsString = listItem.getString("dt") + "000";
+                Weather weather = convertJsonToWeather(list.getJSONObject(i), city, formatting);
                 Calendar cal = Calendar.getInstance();
-                cal.setTimeInMillis(Long.parseLong(dateMsString));
-                weather.setIcon(formatting.setWeatherIcon(Integer.parseInt(idString), cal.get(Calendar.HOUR_OF_DAY)));
-
-                Calendar today = Calendar.getInstance();
-                today.set(Calendar.HOUR_OF_DAY, 0);
-                today.set(Calendar.MINUTE, 0);
-                today.set(Calendar.SECOND, 0);
-                today.set(Calendar.MILLISECOND, 0);
-
-                Calendar tomorrow = (Calendar) today.clone();
-                tomorrow.add(Calendar.DAY_OF_YEAR, 1);
-
-                Calendar later = (Calendar) today.clone();
-                later.add(Calendar.DAY_OF_YEAR, 2);
+                cal.setTime(weather.getDate());
 
                 if (cal.before(tomorrow)) {
                     longTermTodayWeather.add(weather);
@@ -605,9 +640,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
                     longTermWeather.add(weather);
                 }
             }
+
             SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
             editor.putString("lastLongterm", result);
-            editor.commit();
+            editor.apply();
         } catch (JSONException e) {
             Log.e("JSONException Data", result);
             e.printStackTrace();
@@ -828,7 +864,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
             case MY_PERMISSIONS_ACCESS_FINE_LOCATION: {
                 // If request is cancelled, the result arrays are empty.
@@ -928,70 +964,20 @@ public class MainActivity extends BaseActivity implements LocationListener {
         }
     }
 
-    class FindCitiesByNameTask extends GenericRequestTask {
-
-        public FindCitiesByNameTask(Context context, MainActivity activity, ProgressDialog progressDialog) {
-            super(context, activity, progressDialog);
-        }
-
-        @Override
-        protected void onPreExecute() { /*Nothing*/ }
-
-        @Override
-        protected ParseResult parseResponse(String response) {
-            try {
-                JSONObject reader = new JSONObject(response);
-
-                final String code = reader.optString("cod");
-                if ("404".equals(code)) {
-                    Log.e("Geolocation", "No city found");
-                    return ParseResult.CITY_NOT_FOUND;
-                }
-
-//                saveLocation(reader.getString("id"));
-                final JSONArray cityList = reader.getJSONArray("list");
-
-                if (cityList.length() > 1) {
-                    launchLocationPickerDialog(cityList);
-                } else {
-                    saveLocation(cityList.getJSONObject(0).getString("id"));
-                }
-
-            } catch (JSONException e) {
-                Log.e("JSONException Data", response);
-                e.printStackTrace();
-                return ParseResult.JSON_EXCEPTION;
-            }
-
-            return ParseResult.OK;
-        }
-
-        @Override
-        protected String getAPIName() {
-            return "find";
-        }
-
-        @Override
-        protected void onPostExecute(TaskOutput output) {
-            /* Handle possible errors only */
-            handleTaskOutput(output);
-            refreshWeather();
-        }
-    }
-
-    private void launchLocationPickerDialog(JSONArray cityList) {
+    private void launchLocationPickerDialog(List<Weather> cityList) {
         AmbiguousLocationDialogFragment fragment = new AmbiguousLocationDialogFragment();
         Bundle bundle = new Bundle();
         FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
 
-        bundle.putString("cityList", cityList.toString());
+        bundle.putSerializable("cityList", (Serializable) cityList);
         fragment.setArguments(bundle);
 
         fragmentTransaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN);
-        fragmentTransaction.add(android.R.id.content, fragment)
+        fragmentTransaction.add(R.id.drawerLayout, fragment)
                 .addToBackStack(null).commit();
     }
 
+    // TODO: Use common function
     class ProvideCityNameTask extends GenericRequestTask {
 
         public ProvideCityNameTask(Context context, MainActivity activity, ProgressDialog progressDialog) {
@@ -1008,7 +994,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         @Override
         protected ParseResult parseResponse(String response) {
-            Log.i("RESULT", response.toString());
+            Log.i("RESULT", response);
             try {
                 JSONObject reader = new JSONObject(response);
 
@@ -1018,7 +1004,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
                     return ParseResult.CITY_NOT_FOUND;
                 }
 
-                saveLocation(reader.getString("id"));
+                saveLocation(reader.getInt("id"), reader.getString("name"), reader.getJSONObject("sys").getString("country"));
 
             } catch (JSONException e) {
                 Log.e("JSONException Data", response);
@@ -1067,7 +1053,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
     public static long saveLastUpdateTime(SharedPreferences sp) {
         Calendar now = Calendar.getInstance();
-        sp.edit().putLong("lastUpdate", now.getTimeInMillis()).commit();
+        sp.edit().putLong("lastUpdate", now.getTimeInMillis()).apply();
         return now.getTimeInMillis();
     }
 

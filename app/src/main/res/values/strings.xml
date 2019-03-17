@@ -23,6 +23,8 @@
 
     <string name="search_title">Search for city</string>
 
+    <string name="my_locations">My locations</string>
+
     <string name="downloading_data">Downloading your data ...</string>
     <string name="getting_location">Getting your location ...</string>
 

@@ -1,7 +1,13 @@
 package cz.martykan.forecastie.models;
 
+import android.arch.persistence.room.Embedded;
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.Ignore;
+import android.arch.persistence.room.PrimaryKey;
+import android.arch.persistence.room.TypeConverters;
 import android.content.Context;
 
+import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -9,11 +15,16 @@ import java.util.Date;
 import java.util.Locale;
 
 import cz.martykan.forecastie.R;
+import cz.martykan.forecastie.database.AppTypeConverter;
 
-public class Weather {
+@Entity
+public class Weather implements Serializable {
 
-    private String city;
-    private String country;
+    @PrimaryKey(autoGenerate = true)
+    private long uid;
+    @Embedded(prefix = "city")
+    private City city;
+    @TypeConverters(AppTypeConverter.class)
     private Date date;
     private String temperature;
     private String description;
@@ -25,10 +36,10 @@ public class Weather {
     private String id;
     private String icon;
     private String lastUpdated;
+    @TypeConverters(AppTypeConverter.class)
     private Date sunrise;
+    @TypeConverters(AppTypeConverter.class)
     private Date sunset;
-    private double lat;
-    private double lon;
     private double uvIndex;
 
     public enum WindDirection {
@@ -76,20 +87,20 @@ public class Weather {
         return direction % numberOfDirections;
     }
 
-    public String getCity() {
+    public long getUid() {
+        return uid;
+    }
+
+    public void setUid(long uid) {
+        this.uid = uid;
+    }
+
+    public City getCity() {
         return city;
     }
 
-    public void setCity(String city) {
+    public void setCity(City city) {
         this.city = city;
-    }
-
-    public String getCountry() {
-        return country;
-    }
-
-    public void setCountry(String country) {
-        this.country = country;
     }
 
     public String getTemperature() {
@@ -201,14 +212,6 @@ public class Weather {
     public void setSunset(Date date) {
         this.sunset = date;
     }
-
-    public void setLat(double lat) {this.lat = lat; }
-
-    public double getLat() { return this.lat; }
-
-    public void setLon(double lon) { this.lon = lon; }
-
-    public double getLon() { return this.lon; }
 
     public double getUvIndex() { return this.uvIndex; }
 

@@ -27,6 +27,7 @@ import java.util.TimeZone;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.tasks.ParseResult;
+import cz.martykan.forecastie.utils.JsonParser;
 import cz.martykan.forecastie.utils.UnitConvertor;
 
 public class GraphActivity extends BaseActivity {
@@ -272,7 +273,7 @@ public class GraphActivity extends BaseActivity {
         lineChartView.show();
     }
 
-
+    // TODO: Use common parser
     public ParseResult parseLongTermJson(String result) {
         int i;
         try {
@@ -299,9 +300,9 @@ public class GraphActivity extends BaseActivity {
                 JSONObject rainObj = listItem.optJSONObject("rain");
                 JSONObject snowObj = listItem.optJSONObject("snow");
                 if (rainObj != null) {
-                    weather.setRain(MainActivity.getRainString(rainObj));
+                    weather.setRain(JsonParser.getRainString(rainObj));
                 } else {
-                    weather.setRain(MainActivity.getRainString(snowObj));
+                    weather.setRain(JsonParser.getRainString(snowObj));
                 }
 
                 weather.setDate(listItem.getString("dt"));

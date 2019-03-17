@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import cz.martykan.forecastie.BuildConfig;
 import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
+import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.utils.UnitConvertor;
 
@@ -106,6 +107,7 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
         return icon;
     }
 
+    // TODO: Use common parser
     protected Weather parseWidgetJson(String result, Context context) {
         try {
             MainActivity.initMappings();
@@ -144,9 +146,13 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
             String description = reader.optJSONArray("weather").getJSONObject(0).getString("description");
             description = description.substring(0,1).toUpperCase() + description.substring(1);
 
+            City city = new City();
+            city.setId(reader.getInt("id"));
+            city.setCity(reader.getString("name"));
+            city.setCountry(reader.getJSONObject("sys").getString("country"));
+
             Weather widgetWeather = new Weather();
-            widgetWeather.setCity(reader.getString("name"));
-            widgetWeather.setCountry(reader.optJSONObject("sys").getString("country"));
+            widgetWeather.setCity(city);
             widgetWeather.setTemperature(Math.round(temperature) + localize(sp, context, "unit", "C"));
             widgetWeather.setDescription(description);
             widgetWeather.setWind(context.getString(R.string.wind) + ": " + new DecimalFormat("0.0").format(wind) + " " + localize(sp, context, "speedUnit", "m/s")

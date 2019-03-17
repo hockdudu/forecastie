@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.os.Build;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -13,6 +14,7 @@ import android.webkit.WebView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
@@ -21,11 +23,11 @@ public class LocationsRecyclerAdapter extends RecyclerView.Adapter<LocationsRecy
     private LayoutInflater inflater;
     private ItemClickListener itemClickListener;
     private Context context;
-    private ArrayList<Weather> weatherArrayList;
+    private List<Weather> weatherArrayList;
     private boolean darkTheme;
     private boolean blackTheme;
 
-    public LocationsRecyclerAdapter(Context context, ArrayList<Weather> weatherArrayList, boolean darkTheme, boolean blackTheme) {
+    public LocationsRecyclerAdapter(Context context, List<Weather> weatherArrayList, boolean darkTheme, boolean blackTheme) {
         this.context = context;
         this.weatherArrayList = weatherArrayList;
         this.darkTheme = darkTheme;
@@ -45,14 +47,19 @@ public class LocationsRecyclerAdapter extends RecyclerView.Adapter<LocationsRecy
         Typeface weatherFont = Typeface.createFromAsset(context.getAssets(), "fonts/weather.ttf");
         Weather weather = weatherArrayList.get(position);
 
-        holder.cityTextView.setText(String.format("%s, %s", weather.getCity(), weather.getCountry()));
+        holder.cityTextView.setText(weather.getCity().toString());
         holder.temperatureTextView.setText(weather.getTemperature());
         holder.descriptionTextView.setText(weather.getDescription());
         holder.iconTextView.setText(weather.getIcon());
         holder.iconTextView.setTypeface(weatherFont);
 
+        // TODO: Doesn't really work -> NativeInterface is not defined
         holder.webView.getSettings().setJavaScriptEnabled(true);
-        holder.webView.loadUrl("file:///android_asset/map.html?lat=" + weather.getLat()+ "&lon=" + weather.getLon() + "&appid=" + "notneeded&displayPin=true");
+        holder.webView.loadUrl("file:///android_asset/map.html?lat=" + weather.getCity().getLat() + "&lon=" + weather.getCity().getLon() + "&appid=" + "notneeded&zoom=7");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
 
         if (darkTheme || blackTheme) {
             holder.cityTextView.setTextColor(Color.WHITE);
