@@ -104,7 +104,7 @@ public class AlarmReceiver extends BroadcastReceiver {
                 String language = Locale.getDefault().getLanguage();
                 if(language.equals("cs")) { language = "cz"; }
                 String apiKey = sp.getString("apiKey", context.getResources().getString(R.string.apiKey));
-                URL url = new URL("https://api.openweathermap.org/data/2.5/weather?id=" + URLEncoder.encode(sp.getString("cityId", Constants.DEFAULT_CITY_ID), "UTF-8") + "&lang="+ language +"&appid=" + apiKey);
+                URL url = new URL("https://api.openweathermap.org/data/2.5/weather?id=" + URLEncoder.encode(String.valueOf(sp.getInt("cityId", Constants.DEFAULT_CITY_ID)), "UTF-8") + "&lang="+ language +"&appid=" + apiKey);
                 HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
                 BufferedReader r = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
 
@@ -148,7 +148,7 @@ public class AlarmReceiver extends BroadcastReceiver {
                 String language = Locale.getDefault().getLanguage();
                 if(language.equals("cs")) { language = "cz"; }
                 String apiKey = sp.getString("apiKey", context.getResources().getString(R.string.apiKey));
-                URL url = new URL("https://api.openweathermap.org/data/2.5/forecast?id=" + URLEncoder.encode(sp.getString("cityId", Constants.DEFAULT_CITY_ID), "UTF-8") + "&lang="+ language +"&mode=json&appid=" + apiKey);
+                URL url = new URL("https://api.openweathermap.org/data/2.5/forecast?id=" + URLEncoder.encode(String.valueOf(sp.getInt("cityId", Constants.DEFAULT_CITY_ID)), "UTF-8") + "&lang="+ language +"&mode=json&appid=" + apiKey);
                 HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
                 BufferedReader r = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
 
@@ -298,13 +298,13 @@ public class AlarmReceiver extends BroadcastReceiver {
                     Log.d(TAG, "JSON Result: " + result);
                     try {
                         JSONObject reader = new JSONObject(result);
-                        String cityId = reader.getString("id");
+                        int cityId = reader.getInt("id");
                         Log.d(TAG, "City ID: " + cityId);
-                        String lastCity = PreferenceManager.getDefaultSharedPreferences(context).getString("cityId", "");
+                        int lastCity = PreferenceManager.getDefaultSharedPreferences(context).getInt("cityId", 0);
                         SharedPreferences.Editor editor = sp.edit();
-                        editor.putString("cityId", cityId);
-                        editor.putBoolean("cityChanged", !cityId.equals(lastCity));
-                        editor.commit();
+                        editor.putInt("cityId", cityId);
+                        editor.putBoolean("cityChanged", cityId != lastCity);
+                        editor.apply();
 
                     } catch (JSONException e){
                         Log.e(TAG, "An error occurred while reading the JSON object", e);

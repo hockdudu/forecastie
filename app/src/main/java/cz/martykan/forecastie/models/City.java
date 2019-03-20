@@ -2,11 +2,13 @@ package cz.martykan.forecastie.models;
 
 
 import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.ForeignKey;
 import android.arch.persistence.room.PrimaryKey;
 
 import java.io.Serializable;
 
 @Entity
+@ForeignKey(entity = Weather.class, childColumns = "currentWeatherId", parentColumns = "uid")
 public class City implements Serializable {
 
     @PrimaryKey

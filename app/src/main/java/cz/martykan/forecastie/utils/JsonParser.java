@@ -3,10 +3,13 @@ package cz.martykan.forecastie.utils;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
@@ -44,12 +47,8 @@ public class JsonParser {
         return city;
     }
 
-    public static Weather convertJsonToWeather(JSONObject weatherObject, City city, Formatting formatting) {
-        return convertJsonToWeather(weatherObject, city, formatting, false);
-    }
-
     @NonNull
-    public static Weather convertJsonToWeather(JSONObject weatherObject, City city, Formatting formatting, boolean isCurrentWeather) {
+    public static Weather convertJsonToWeather(JSONObject weatherObject, City city, Formatting formatting) {
         Weather weather = new Weather();
 
         try {
@@ -101,6 +100,8 @@ public class JsonParser {
             }
 
             weather.setCity(city);
+            weather.setCityId(city.getId());
+            weather.setLastUpdated(Calendar.getInstance().getTimeInMillis());
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -117,5 +118,36 @@ public class JsonParser {
             }
         }
         return rain;
+    }
+
+    public static List<Weather> convertJsonToForecast(JSONObject jsonObject, City city, Formatting formatting) {
+        List<Weather> weatherList = new ArrayList<>();
+
+        try {
+            JSONArray weathers = jsonObject.getJSONArray("list");
+
+            for (int i = 0; i < weathers.length(); i++) {
+                JSONObject weathersJSONObject = weathers.getJSONObject(i);
+                Weather weather = convertJsonToWeather(weathersJSONObject, city, formatting);
+                weatherList.add(weather);
+            }
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return weatherList;
+    }
+
+    public static double convertJsonToUVIndex(JSONObject jsonObject) {
+        double UVIndex = 0;
+
+        try {
+            UVIndex = jsonObject.getDouble("value");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return UVIndex;
     }
 }

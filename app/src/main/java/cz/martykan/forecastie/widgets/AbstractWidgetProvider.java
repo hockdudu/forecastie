@@ -134,15 +134,6 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
             // Pressure
             double pressure = UnitConvertor.convertPressure((float) Double.parseDouble(reader.optJSONObject("main").getString("pressure").toString()), sp);
 
-            long lastUpdateTimeInMillis = sp.getLong("lastUpdate", -1);
-            String lastUpdate;
-            if (lastUpdateTimeInMillis < 0) {
-                // No time
-                lastUpdate = "";
-            } else {
-                lastUpdate = context.getString(R.string.last_update_widget, MainActivity.formatTimeWithDayIfNotToday(context, lastUpdateTimeInMillis));
-            }
-
             String description = reader.optJSONArray("weather").getJSONObject(0).getString("description");
             description = description.substring(0,1).toUpperCase() + description.substring(1);
 
@@ -162,7 +153,7 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
             widgetWeather.setSunrise(reader.optJSONObject("sys").getString("sunrise"));
             widgetWeather.setSunset(reader.optJSONObject("sys").getString("sunset"));
             widgetWeather.setIcon(setWeatherIcon(Integer.parseInt(reader.optJSONArray("weather").getJSONObject(0).getString("id")), Calendar.getInstance().get(Calendar.HOUR_OF_DAY), context));
-            widgetWeather.setLastUpdated(lastUpdate);
+            widgetWeather.setLastUpdated(sp.getLong("lastUpdate", -1));
 
             return widgetWeather;
         } catch (JSONException e) {

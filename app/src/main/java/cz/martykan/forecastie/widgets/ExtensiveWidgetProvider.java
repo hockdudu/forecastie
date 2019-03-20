@@ -58,7 +58,7 @@ public class ExtensiveWidgetProvider extends AbstractWidgetProvider {
             remoteViews.setTextViewText(R.id.widgetHumidity, context.getString(R.string.humidity) + ": " + widgetWeather.getHumidity() + " %");
             remoteViews.setTextViewText(R.id.widgetSunrise, context.getString(R.string.sunrise) + ": " + timeFormat.format(widgetWeather.getSunrise())); //
             remoteViews.setTextViewText(R.id.widgetSunset, context.getString(R.string.sunset) + ": " + timeFormat.format(widgetWeather.getSunset()));
-            remoteViews.setTextViewText(R.id.widgetLastUpdate, widgetWeather.getLastUpdated());
+            remoteViews.setTextViewText(R.id.widgetLastUpdate, MainActivity.formatTimeWithDayIfNotToday(context, widgetWeather.getLastUpdated()));
             remoteViews.setImageViewBitmap(R.id.widgetIcon, getWeatherIcon(widgetWeather.getIcon(), context));
 
             appWidgetManager.updateAppWidget(widgetId, remoteViews);

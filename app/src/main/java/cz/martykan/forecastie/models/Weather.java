@@ -1,7 +1,7 @@
 package cz.martykan.forecastie.models;
 
-import android.arch.persistence.room.Embedded;
 import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.ForeignKey;
 import android.arch.persistence.room.Ignore;
 import android.arch.persistence.room.PrimaryKey;
 import android.arch.persistence.room.TypeConverters;
@@ -18,12 +18,14 @@ import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.database.AppTypeConverter;
 
 @Entity
+@ForeignKey(entity = City.class, childColumns = "cityId", parentColumns = "id")
 public class Weather implements Serializable {
 
     @PrimaryKey(autoGenerate = true)
     private long uid;
-    @Embedded(prefix = "city")
+    @Ignore
     private City city;
+    private int cityId;
     @TypeConverters(AppTypeConverter.class)
     private Date date;
     private String temperature;
@@ -35,7 +37,7 @@ public class Weather implements Serializable {
     private String rain;
     private String id;
     private String icon;
-    private String lastUpdated;
+    private long lastUpdated;
     @TypeConverters(AppTypeConverter.class)
     private Date sunrise;
     @TypeConverters(AppTypeConverter.class)
@@ -101,6 +103,14 @@ public class Weather implements Serializable {
 
     public void setCity(City city) {
         this.city = city;
+    }
+
+    public int getCityId() {
+        return cityId;
+    }
+
+    public void setCityId(int cityId) {
+        this.cityId = cityId;
     }
 
     public String getTemperature() {
@@ -283,11 +293,11 @@ public class Weather implements Serializable {
         this.rain = rain;
     }
 
-    public void setLastUpdated(String lastUpdated) {
+    public void setLastUpdated(long lastUpdated) {
         this.lastUpdated = lastUpdated;
     }
 
-    public String getLastUpdated() {
+    public long getLastUpdated() {
         return lastUpdated;
     }
 }

@@ -3,6 +3,7 @@ package cz.martykan.forecastie.database;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
+import android.location.Location;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -48,7 +49,6 @@ public class CityRepository extends AbstractRepository {
     public LiveData<List<Weather>> searchCity(String cityName) {
         MutableLiveData<List<Weather>> citiesLiveData = new MutableLiveData<>();
 
-        Handler handler = new Handler();
         Runnable runnable = () -> {
             String response = downloadJson(provideCitySearchUrl(cityName));
 
@@ -72,7 +72,7 @@ public class CityRepository extends AbstractRepository {
                     weathers.add(weather);
                 }
 
-                handler.post(() -> citiesLiveData.setValue(weathers));
+                citiesLiveData.postValue(weathers);
 
             } catch (JSONException e) {
                 Log.e("JSONException Data", response);
@@ -85,26 +85,89 @@ public class CityRepository extends AbstractRepository {
         return citiesLiveData;
     }
 
+    public LiveData<City> getCity(int cityId) {
+        MutableLiveData<City> cityLiveData = new MutableLiveData<>();
+
+        Runnable runnable = () -> {
+            City city = cityDao.findById(cityId);
+
+            if (city == null) {
+                String result = downloadJson(provideCityIdUrl(cityId));
+
+                try {
+                    JSONObject cityObject = new JSONObject(result);
+                    city = JsonParser.convertJsonToCity(cityObject);
+
+                    if (city != null) {
+                        Add(city);
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            // TODO: City MIGHT be null, but it SHOULDN'T
+            cityLiveData.postValue(city);
+        };
+
+        new Thread(runnable).start();
+
+        return cityLiveData;
+    }
+
     public LiveData<List<City>> getCities() {
         MutableLiveData<List<City>> citiesLiveData = new MutableLiveData<>();
 
-        Handler handler = new Handler();
         Runnable runnable = () -> {
             List<City> cities = cityDao.getAll();
 
-            handler.post(() -> {
-                citiesLiveData.setValue(cities);
-            });
+            citiesLiveData.postValue(cities);
         };
 
         new Thread(runnable).start();
 
         return citiesLiveData;
     }
+    public LiveData<City> findCity(Location location) {
+        MutableLiveData<City> cityLiveData = new MutableLiveData<>();
+
+        Runnable runnable = () -> {
+            City city = null;
+
+            String response = downloadJson(provideCityLocationSearchUrl(location));
+            try {
+                JSONObject reader = new JSONObject(response);
+                city = JsonParser.convertJsonToCity(reader);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+            // TODO: What if it is null?
+            cityLiveData.postValue(city);
+
+        };
+
+        new Thread(runnable).start();
+
+        return cityLiveData;
+    }
+
+    private URL provideCityLocationSearchUrl(Location location) {
+        HashMap<String, String> params = new HashMap<>();
+        params.put("lat", String.valueOf(location.getLatitude()));
+        params.put("lon", String.valueOf(location.getLongitude()));
+        return provideUrl("weather", params);
+    }
 
     private URL provideCitySearchUrl(String cityToSearch) {
         HashMap<String, String> params = new HashMap<>();
         params.put("q", cityToSearch);
         return provideUrl("find", params);
+    }
+
+    private URL provideCityIdUrl(int cityId) {
+        HashMap<String, String> params = new HashMap<>();
+        params.put("id", String.valueOf(cityId));
+        return provideUrl("weather", params);
     }
 }

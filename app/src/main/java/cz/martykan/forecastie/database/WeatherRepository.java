@@ -4,6 +4,8 @@ import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
 import android.os.Handler;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -16,7 +18,9 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
@@ -43,31 +47,30 @@ public class WeatherRepository extends AbstractRepository {
         return getCurrentWeather(city, false);
     }
 
-    public LiveData<Weather> getCurrentWeather(City city, boolean forceRedownload) {
+    public LiveData<Weather> getCurrentWeather(City city, boolean forceDownload) {
         MutableLiveData<Weather> weather = new MutableLiveData<>();
 
-        Handler handler = new Handler();
         Runnable runnable = () -> {
-            Weather currentWeather;
+            Weather currentWeather = weatherDao.findByUid(city.getCurrentWeatherId());
 
-            if (forceRedownload) {
-                currentWeather = null;
-            } else {
-                currentWeather = weatherDao.findByUid(city.getCurrentWeatherId());
+            if (forceDownload || currentWeather == null || isWeatherTooOld(currentWeather)) {
+                Weather downloadedWeather = downloadCurrentWeather(city);
 
-                if (currentWeather == null || (Calendar.getInstance().getTimeInMillis() - currentWeather.getDate().getTime()) > UPDATE_THRESHOLD) {
-                    currentWeather = null;
+                if (downloadedWeather != null) {
+                    // TODO: Should downloadCurrentWeather set the city's current weather?
+                    if (currentWeather != null) {
+                        weatherDao.delete(currentWeather);
+                    }
+                    currentWeather = downloadedWeather;
                 }
             }
 
-            final Weather finalWeather;
-            if (currentWeather != null) {
-                 finalWeather = currentWeather;
-            } else {
-                finalWeather = downloadCurrentWeather(city);
-            }
+            // We don't need to query cityId, because cities should only have weathers
+            // that have the city as the cityId
+            // TODO: What if weather is still null?
+            currentWeather.setCity(city);
 
-            handler.post(() -> weather.setValue(finalWeather));
+            weather.postValue(currentWeather);
         };
 
         new Thread(runnable).start();
@@ -75,17 +78,47 @@ public class WeatherRepository extends AbstractRepository {
         return weather;
     }
 
-    // TODO: Implement this
-    public LiveData<List<Weather>> getWeatherForecast(City city, boolean forceRedownload) {
+    public LiveData<List<Weather>> getWeatherForecast(City city, boolean forceDownload) {
         MutableLiveData<List<Weather>> weatherList = new MutableLiveData<>();
+
+        Runnable runnable = () -> {
+            List<Weather> weathers = weatherDao.findForecast(city.getId(), city.getCurrentWeatherId());
+
+            boolean weatherMustBeRedownloaded = false;
+
+            if (!forceDownload) {
+                for (Weather weather : weathers) {
+                    if (isWeatherTooOld(weather)) {
+                        weatherMustBeRedownloaded = true;
+                        break;
+                    }
+                }
+            }
+
+            if (weatherMustBeRedownloaded || forceDownload || weathers.size() == 0) {
+                List<Weather> downloadedForecast = downloadCurrentForecast(city);
+
+                if (downloadedForecast.size() != 0) {
+                    weatherDao.delete(weathers.toArray(new Weather[0]));
+                    weatherDao.insertAll(downloadedForecast.toArray(new Weather[0]));
+                    weathers = downloadedForecast;
+                }
+            }
+
+            weatherList.postValue(weathers);
+        };
+
+        new Thread(runnable).start();
 
         return weatherList;
     }
 
+    @Nullable
     private Weather downloadCurrentWeather(City city) {
         Weather weather = null;
 
         String response = downloadJson(provideWeatherUrl(city));
+        double currentUVIndex = downloadCurrentUVIndex(city);
 
         try {
             JSONObject jsonObject = new JSONObject(response);
@@ -97,6 +130,7 @@ public class WeatherRepository extends AbstractRepository {
         if (weather != null) {
             long id = weatherDao.insert(weather);
             weather.setUid(id);
+            weather.setUvIndex(currentUVIndex);
             city.setCurrentWeatherId(id);
             cityDao.persist(city);
         }
@@ -108,5 +142,52 @@ public class WeatherRepository extends AbstractRepository {
         HashMap<String, String> params = new HashMap<>();
         params.put("id", String.valueOf(city.getId()));
         return provideUrl("weather", params);
+    }
+
+    private List<Weather> downloadCurrentForecast(City city) {
+        List<Weather> weathers = new ArrayList<>();
+
+        String response = downloadJson(provideForecastUrl(city));
+
+        try {
+            JSONObject jsonObject = new JSONObject(response);
+            weathers = JsonParser.convertJsonToForecast(jsonObject, city, getFormatting());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return weathers;
+    }
+
+    private URL provideForecastUrl(City city) {
+        HashMap<String, String> params = new HashMap<>();
+        params.put("id", String.valueOf(city.getId()));
+        return provideUrl("forecast", params);
+    }
+
+    private double downloadCurrentUVIndex(City city) {
+        double currentUVIndex = 0;
+
+        String response = downloadJson(provideUVIndexUrl(city));
+
+        try {
+            JSONObject jsonObject = new JSONObject(response);
+            currentUVIndex = JsonParser.convertJsonToUVIndex(jsonObject);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return currentUVIndex;
+    }
+
+    private URL provideUVIndexUrl(City city) {
+        HashMap<String, String> params = new HashMap<>();
+        params.put("lat", String.valueOf(city.getLat()));
+        params.put("lon", String.valueOf(city.getLon()));
+        return provideUrl("uvi", params);
+    }
+
+    private boolean isWeatherTooOld(@NonNull Weather weather) {
+        return (Calendar.getInstance().getTimeInMillis() - weather.getLastUpdated()) > UPDATE_THRESHOLD;
     }
 }
