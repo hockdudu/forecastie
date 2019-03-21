@@ -51,6 +51,7 @@ import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -286,9 +287,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
             // TODO: Handle empty list
             LinearLayout citiesList = sidebarDrawer.findViewById(R.id.citiesList);
+            Collections.sort(cities, (o1, o2) -> o1.getCity().compareTo(o2.getCity()));
             for (int i = 0; i < cities.size(); i++) {
                 City city = cities.get(i);
-                ConstraintLayout drawerItem = (ConstraintLayout) getLayoutInflater().inflate(R.layout.fragment_drawer_item, null);
+                ConstraintLayout drawerItem = (ConstraintLayout) getLayoutInflater().inflate(R.layout.fragment_drawer_item, citiesList, false);
                 citiesList.addView(drawerItem);
 
                 TextView weatherIcon = drawerItem.findViewById(R.id.weatherIcon);
@@ -297,13 +299,18 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 TextView cityName = drawerItem.findViewById(R.id.cityName);
                 cityName.setText(city.toString());
 
+                TextView temperature = drawerItem.findViewById(R.id.temperature);
+
                 LiveResponse<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city, false);
+
+                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
 
                 weatherLiveData.getLiveData().observe(this, weather -> {
                     if (handleConnectionStatus(weatherLiveData.getStatus())) {
-                        // It should never be null on SUCCESS
                         assert weather != null;
                         weatherIcon.setText(weather.getIcon());
+                        // TODO: Use resource string
+                        temperature.setText(new DecimalFormat("0.#").format(UnitConvertor.convertTemperature(Float.parseFloat(weather.getTemperature()), sp)) + " " + sp.getString("unit", "°C"));
                     }
                 });
 
@@ -638,9 +645,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
             LiveData<Boolean> isWeatherDownloaded = updateTodayWeather(true);
             LiveData<Boolean> isForecastDownloaded = updateForecast(true);
 
-            isWeatherDownloaded.observe(this, weatherDownloaded -> isForecastDownloaded.observe(this, forecastDownloaded -> {
-                swipeRefreshLayout.setRefreshing(false);
-            }));
+            isWeatherDownloaded.observe(this, weatherDownloaded ->
+                    isForecastDownloaded.observe(this, forecastDownloaded ->
+                            swipeRefreshLayout.setRefreshing(false)
+                    ));
         } else {
             Snackbar.make(appView, getString(R.string.msg_connection_not_available), Snackbar.LENGTH_LONG).show();
             swipeRefreshLayout.setRefreshing(false);

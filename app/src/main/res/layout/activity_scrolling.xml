@@ -144,7 +144,7 @@
                             android:textSize="16sp"
                             app:layout_constraintStart_toStartOf="parent"
                             app:layout_constraintTop_toBottomOf="@+id/todaySunset"
-                            tools:text="Uv Index: Loading..." />
+                            tools:text="Uv Index: Low" />
 
                         <TextView
                             android:id="@+id/todayIcon"
