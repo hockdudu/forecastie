@@ -19,13 +19,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 
 import cz.martykan.forecastie.R;
@@ -33,10 +26,7 @@ import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.adapters.LocationsRecyclerAdapter;
 import cz.martykan.forecastie.database.AppDatabase;
 import cz.martykan.forecastie.database.CityRepository;
-import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
-import cz.martykan.forecastie.utils.Formatting;
-import cz.martykan.forecastie.utils.UnitConvertor;
 
 public class AmbiguousLocationDialogFragment extends DialogFragment implements LocationsRecyclerAdapter.ItemClickListener {
 
@@ -112,7 +102,7 @@ public class AmbiguousLocationDialogFragment extends DialogFragment implements L
             final Intent intent = new Intent(getActivity(), MainActivity.class);
             final Bundle bundle = new Bundle();
 
-            cityRepository.Add(weather.getCity());
+            cityRepository.addCity(weather.getCity());
             bundle.putBoolean("shouldRefresh", true);
             intent.putExtras(bundle);
 

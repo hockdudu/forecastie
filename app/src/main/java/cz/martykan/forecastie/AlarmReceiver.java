@@ -90,6 +90,7 @@ public class AlarmReceiver extends BroadcastReceiver {
         return preferences.getBoolean("updateLocationAutomatically", false);
     }
 
+    // TODO: Use common function
     public class GetWeatherTask extends AsyncTask<String, String, Void> {
 
         protected void onPreExecute() {
@@ -116,7 +117,8 @@ public class AlarmReceiver extends BroadcastReceiver {
                     SharedPreferences.Editor editor = sp.edit();
                     editor.putString("lastToday", result);
                     editor.apply();
-                    MainActivity.saveLastUpdateTime(sp);
+                    // TODO: Implement saveLastUpdateTime
+                    // MainActivity.saveLastUpdateTime(sp);
                 }
                 else {
                     // Connection problem
@@ -134,6 +136,7 @@ public class AlarmReceiver extends BroadcastReceiver {
         }
     }
 
+    // TODO: Use common function
     class GetLongTermWeatherTask extends AsyncTask<String, String, Void> {
 
         protected void onPreExecute() {
@@ -267,6 +270,7 @@ public class AlarmReceiver extends BroadcastReceiver {
         }
     }
 
+    // TODO: Use common function
     public class GetCityNameTask extends AsyncTask <String, String, Void> {
         private static final String TAG = "GetCityNameTask";
 

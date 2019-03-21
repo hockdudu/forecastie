@@ -18,6 +18,7 @@ import java.util.Map;
 
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.utils.Formatting;
+import cz.martykan.forecastie.utils.Response;
 
 public abstract class AbstractRepository {
     protected Context context;
@@ -27,8 +28,10 @@ public abstract class AbstractRepository {
         this.context = context;
     }
 
-    protected String downloadJson(URL url) {
-        StringBuilder response = new StringBuilder();
+    protected Response downloadJson(URL url) {
+        Response response = new Response();
+        StringBuilder responseString = new StringBuilder();
+
         try {
             Log.i("URL", url.toString());
 
@@ -42,27 +45,33 @@ public abstract class AbstractRepository {
                 int responseCode = urlConnection.getResponseCode();
                 String line;
                 while ((line = r.readLine()) != null) {
-                    response.append(line).append("\n");
+                    responseString.append(line).append("\n");
                 }
                 r.close();
                 urlConnection.disconnect();
+
                 // Background work finished successfully
                 Log.i("Task", "done successfully");
+                response.setStatus(Response.Status.SUCCESS);
+                response.setDataString(responseString.toString());
 
             } else if (urlConnection.getResponseCode() == 429) {
                 // Too many requests
                 Log.i("Task", "too many requests");
+                response.setStatus(Response.Status.TOO_MANY_REQUESTS);
             } else {
                 // Bad response from server
                 Log.i("Task", "bad response " + urlConnection.getResponseCode());
+                response.setStatus(Response.Status.BAD_RESPONSE);
             }
         } catch (IOException e) {
             // Exception while reading data from url connection
-            Log.e("IOException Data", response.toString());
+            Log.e("IOException Data", responseString.toString());
             e.printStackTrace();
+            response.setStatus(Response.Status.IO_EXCEPTION);
         }
 
-        return response.toString();
+        return response;
     }
 
 

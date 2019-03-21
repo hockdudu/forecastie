@@ -72,6 +72,8 @@ import cz.martykan.forecastie.fragments.AmbiguousLocationDialogFragment;
 import cz.martykan.forecastie.fragments.RecyclerViewFragment;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.LiveResponse;
+import cz.martykan.forecastie.utils.Response;
 import cz.martykan.forecastie.utils.UI;
 import cz.martykan.forecastie.utils.UnitConvertor;
 
@@ -196,7 +198,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         // Preload data from cache
         refreshWeather();
-        updateLastUpdateTime();
 
         // Initializes drawer
         LinearLayout drawerContainer = findViewById(R.id.drawerContainer);
@@ -279,10 +280,11 @@ public class MainActivity extends BaseActivity implements LocationListener {
         TextView addLocationText = sidebarDrawer.findViewById(R.id.addLocation);
         searchIcon.setColorFilter(addLocationText.getCurrentTextColor(), PorterDuff.Mode.SRC_IN);
 
-        LiveData<List<City>> citiesLiveData = cityRepository.getCities();
-        citiesLiveData.observe(this, cities -> {
+        LiveResponse<List<City>> citiesLiveData = cityRepository.getCities();
+        citiesLiveData.getLiveData().observe(this, cities -> {
             assert cities != null;
 
+            // TODO: Handle empty list
             LinearLayout citiesList = sidebarDrawer.findViewById(R.id.citiesList);
             for (int i = 0; i < cities.size(); i++) {
                 City city = cities.get(i);
@@ -295,11 +297,14 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 TextView cityName = drawerItem.findViewById(R.id.cityName);
                 cityName.setText(city.toString());
 
-                LiveData<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city);
+                LiveResponse<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city, false);
 
-                weatherLiveData.observe(this, weather -> {
-                    assert weather != null;
-                    weatherIcon.setText(weather.getIcon());
+                weatherLiveData.getLiveData().observe(this, weather -> {
+                    if (handleConnectionStatus(weatherLiveData.getStatus())) {
+                        // It should never be null on SUCCESS
+                        assert weather != null;
+                        weatherIcon.setText(weather.getIcon());
+                    }
                 });
 
                 drawerItem.setOnClickListener(v -> {
@@ -313,16 +318,23 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
     private LiveData<Boolean> updateTodayWeather(boolean forceDownload) {
         MutableLiveData<Boolean> isDone = new MutableLiveData<>();
-        LiveData<City> currentCity = cityRepository.getCity(recentCityId);
+        LiveResponse<City> currentCity = cityRepository.getCity(recentCityId);
 
-        currentCity.observe(this, city -> {
-            LiveData<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city, forceDownload);
-            weatherLiveData.observe(this, weather -> {
-                todayWeather = weather;
-                updateTodayWeatherUI();
-
+        currentCity.getLiveData().observe(this, city -> {
+            if (handleConnectionStatus(currentCity.getStatus())) {
+                LiveResponse<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city, forceDownload);
+                weatherLiveData.getLiveData().observe(this, weather -> {
+                    if (handleConnectionStatus(weatherLiveData.getStatus())) {
+                        todayWeather = weather;
+                        updateTodayWeatherUI();
+                        isDone.setValue(true);
+                    } else {
+                        isDone.setValue(true);
+                    }
+                });
+            } else {
                 isDone.setValue(true);
-            });
+            }
         });
 
         return isDone;
@@ -331,43 +343,51 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private LiveData<Boolean> updateForecast(boolean forceDownload) {
         MutableLiveData<Boolean> isDone = new MutableLiveData<>();
 
-        LiveData<City> currentCity = cityRepository.getCity(recentCityId);
-        currentCity.observe(this, city -> {
+        LiveResponse<City> currentCity = cityRepository.getCity(recentCityId);
+        currentCity.getLiveData().observe(this, city -> {
+            if (handleConnectionStatus(currentCity.getStatus())) {
+                LiveResponse<List<Weather>> forecastLiveData = weatherRepository.getWeatherForecast(city, forceDownload);
 
-            LiveData<List<Weather>> forecastLiveData = weatherRepository.getWeatherForecast(city, forceDownload);
+                forecastLiveData.getLiveData().observe(this, weathers -> {
+                    assert weathers != null;
 
-            forecastLiveData.observe(this, weathers -> {
-                assert weathers != null;
+                    if (handleConnectionStatus(forecastLiveData.getStatus())) {
+                        Calendar today = Calendar.getInstance();
+                        today.set(Calendar.HOUR_OF_DAY, 0);
+                        today.set(Calendar.MINUTE, 0);
+                        today.set(Calendar.SECOND, 0);
+                        today.set(Calendar.MILLISECOND, 0);
 
-                Calendar today = Calendar.getInstance();
-                today.set(Calendar.HOUR_OF_DAY, 0);
-                today.set(Calendar.MINUTE, 0);
-                today.set(Calendar.SECOND, 0);
-                today.set(Calendar.MILLISECOND, 0);
+                        Calendar tomorrow = (Calendar) today.clone();
+                        tomorrow.add(Calendar.DAY_OF_YEAR, 1);
 
-                Calendar tomorrow = (Calendar) today.clone();
-                tomorrow.add(Calendar.DAY_OF_YEAR, 1);
-
-                Calendar later = (Calendar) today.clone();
-                later.add(Calendar.DAY_OF_YEAR, 2);
-                longTermTodayWeather = new ArrayList<>();
-                longTermTomorrowWeather = new ArrayList<>();
-                longTermWeather = new ArrayList<>();
+                        Calendar later = (Calendar) today.clone();
+                        later.add(Calendar.DAY_OF_YEAR, 2);
+                        longTermTodayWeather = new ArrayList<>();
+                        longTermTomorrowWeather = new ArrayList<>();
+                        longTermWeather = new ArrayList<>();
 
 
-                for (Weather weather : weathers) {
-                    if (weather.getDate().before(tomorrow.getTime())) {
-                        longTermTodayWeather.add(weather);
-                    } else if (weather.getDate().before(later.getTime())) {
-                        longTermTomorrowWeather.add(weather);
+                        for (Weather weather : weathers) {
+                            if (weather.getDate().before(tomorrow.getTime())) {
+                                longTermTodayWeather.add(weather);
+                            } else if (weather.getDate().before(later.getTime())) {
+                                longTermTomorrowWeather.add(weather);
+                            } else {
+                                longTermWeather.add(weather);
+                            }
+                        }
+
+                        isDone.setValue(true);
+                        updateLongTermWeatherUI();
                     } else {
-                        longTermWeather.add(weather);
+                        isDone.setValue(true);
                     }
-                }
-
+                });
+            } else {
                 isDone.setValue(true);
-                updateLongTermWeatherUI();
-            });
+            }
+
         });
 
         return isDone;
@@ -386,18 +406,21 @@ public class MainActivity extends BaseActivity implements LocationListener {
         alert.setPositiveButton(R.string.dialog_ok, (dialog, whichButton) -> {
             String result = input.getText().toString();
             if (!result.isEmpty()) {
-                LiveData<List<Weather>> cities = cityRepository.searchCity(result.trim());
-                cities.observe(this, citiesList -> {
-                    assert citiesList != null;
+                LiveResponse<List<Weather>> cities = cityRepository.searchCity(result.trim());
+                cities.getLiveData().observe(this, citiesList -> {
+                    if (handleConnectionStatus(cities.getStatus())) {
+                        assert citiesList != null;
 
-                    if (citiesList.size() == 0) {
-                        Log.e("Geolocation", "No city found");
-                        // TODO: We cant return it here, do something else
-                        // return ParseResult.CITY_NOT_FOUND;
-                    } else if (citiesList.size() == 1) {
-                        saveLocation(citiesList.get(0).getCity());
-                    } else {
-                        launchLocationPickerDialog(citiesList);
+                        // TODO: Is it ever going to be empty? Wouldn't a 404 be returned?
+                        if (citiesList.size() == 0) {
+                            Log.e("Geolocation", "No city found");
+                            // TODO: We cant return it here, do something else
+                            // return ParseResult.CITY_NOT_FOUND;
+                        } else if (citiesList.size() == 1) {
+                            saveLocation(citiesList.get(0).getCity());
+                        } else {
+                            launchLocationPickerDialog(citiesList);
+                        }
                     }
                 });
             }
@@ -495,6 +518,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         todaySunset.setText(getString(R.string.sunset) + ": " + timeFormat.format(todayWeather.getSunset()));
         todayIcon.setText(todayWeather.getIcon());
         todayUvIndex.setText(getString(R.string.uvindex) + ": " + UnitConvertor.convertUvIndexToRiskLevel(todayWeather.getUvIndex()));
+        lastUpdate.setText(getString(R.string.last_update, formatTimeWithDayIfNotToday(this, todayWeather.getLastUpdated())));
 
         todayIcon.setOnClickListener(view -> {
             Intent intent = new Intent(MainActivity.this, GraphActivity.class);
@@ -546,9 +570,12 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     private boolean shouldUpdate() {
-        long lastUpdate = PreferenceManager.getDefaultSharedPreferences(this).getLong("lastUpdate", -1);
+        long lastUpdate = -1;
+        if (todayWeather != null) {
+            lastUpdate = todayWeather.getLastUpdated();
+        }
         boolean cityChanged = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("cityChanged", false);
-        // Update if never checked or last update is longer ago than specified threshold
+        // Update if never checked or las"t update is longer ago than specified threshold
         return cityChanged || lastUpdate < 0 || (Calendar.getInstance().getTimeInMillis() - lastUpdate) > NO_UPDATE_REQUIRED_THRESHOLD;
     }
 
@@ -612,8 +639,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
             LiveData<Boolean> isForecastDownloaded = updateForecast(true);
 
             isWeatherDownloaded.observe(this, weatherDownloaded -> isForecastDownloaded.observe(this, forecastDownloaded -> {
-                // TODO: It might be wrong, it didn't necessarily download
-                updateLastUpdateTime(saveLastUpdateTime(PreferenceManager.getDefaultSharedPreferences(this)));
                 swipeRefreshLayout.setRefreshing(false);
             }));
         } else {
@@ -745,10 +770,13 @@ public class MainActivity extends BaseActivity implements LocationListener {
         }
         Log.i("LOCATION (" + location.getProvider().toUpperCase() + ")", location.getLatitude() + ", " + location.getLongitude());
 
-        LiveData<City> cityLiveData = cityRepository.findCity(location);
+        LiveResponse<City> cityLiveData = cityRepository.findCity(location);
 
-        cityLiveData.observe(this, city -> {
-            saveLocation(city);
+        cityLiveData.getLiveData().observe(this, city -> {
+            // TODO: What do we do if city if city is null?
+            if (city != null) {
+                saveLocation(city);
+            }
         });
     }
 
@@ -780,27 +808,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 .addToBackStack(null).commit();
     }
 
-    public static long saveLastUpdateTime(SharedPreferences sp) {
-        Calendar now = Calendar.getInstance();
-        sp.edit().putLong("lastUpdate", now.getTimeInMillis()).apply();
-        return now.getTimeInMillis();
-    }
-
-    private void updateLastUpdateTime() {
-        updateLastUpdateTime(
-                PreferenceManager.getDefaultSharedPreferences(this).getLong("lastUpdate", -1)
-        );
-    }
-
-    private void updateLastUpdateTime(long timeInMillis) {
-        if (timeInMillis < 0) {
-            // No time
-            lastUpdate.setText("");
-        } else {
-            lastUpdate.setText(getString(R.string.last_update, formatTimeWithDayIfNotToday(this, timeInMillis)));
-        }
-    }
-
     public static String formatTimeWithDayIfNotToday(Context context, long timeInMillis) {
         Calendar now = Calendar.getInstance();
         Calendar lastCheckedCal = new GregorianCalendar();
@@ -813,6 +820,16 @@ public class MainActivity extends BaseActivity implements LocationListener {
             return timeFormat;
         } else {
             return android.text.format.DateFormat.getDateFormat(context).format(lastCheckedDate) + " " + timeFormat;
+        }
+    }
+
+    private boolean handleConnectionStatus(Response.Status status) {
+        switch (status) {
+            case SUCCESS:
+                return true;
+            default:
+                Snackbar.make(appView, status.toString(), Snackbar.LENGTH_LONG).show();
+                return false;
         }
     }
 }
