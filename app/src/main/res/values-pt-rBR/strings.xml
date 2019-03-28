@@ -15,6 +15,23 @@
     <string name="sunrise">Nascer do sol</string>
     <string name="sunset">Pôr do sol</string>
 
+    <!-- 1: temperature; 2: unit -->
+    <string name="format_temperature">%1$.1f %2$s</string>
+    <!-- 1: description; 2: rain -->
+    <string name="format_description_with_rain">%1$s (%2$s)</string>
+    <!-- 1: wind speed; 2: unit; 3: direction -->
+    <string name="format_wind">Vento: %1$.1f %2$s %3$s</string>
+    <!-- 1: wind, beaufort scale -->
+    <string name="format_wind_beaufort">Vento: %1$s %2$s</string>
+    <!-- 1: pressure; 2: unit -->
+    <string name="format_pressure">Pressão: %1$.1f %2$s</string>
+    <!-- 1: humidity -->
+    <string name="format_humidity">Umidade: %1$d %%</string>
+    <!-- 1: time -->
+    <string name="format_sunrise">Nascer do sol: %1$tR</string>
+    <!-- 1: time -->
+    <string name="format_sunset">Pôr do sol: %1$tR</string>
+
     <string name="last_update">Última atualização:\n%s</string>
     <string name="last_update_widget">\nÚltima atualização: %s</string>
 

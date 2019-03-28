@@ -15,6 +15,23 @@
     <string name="sunrise">طلوع</string>
     <string name="sunset">غروب</string>
 
+    <!-- 1: temperature; 2: unit -->
+    <string name="format_temperature">%1$.1f %2$s</string>
+    <!-- 1: description; 2: rain -->
+    <string name="format_description_with_rain">%1$s (%2$s)</string>
+    <!-- 1: wind speed; 2: unit; 3: direction -->
+    <string name="format_wind">باد: %1$.1f %2$s %3$s</string>
+    <!-- 1: wind, beaufort scale -->
+    <string name="format_wind_beaufort">باد: %1$s %2$s</string>
+    <!-- 1: pressure; 2: unit -->
+    <string name="format_pressure">فشار: %1$.1f %2$s</string>
+    <!-- 1: humidity -->
+    <string name="format_humidity">رطوبت: %1$d %%</string>
+    <!-- 1: time -->
+    <string name="format_sunrise">طلوع: %1$tR</string>
+    <!-- 1: time -->
+    <string name="format_sunset">غروب: %1$tR</string>
+
     <string name="search_title">جستجوی شهر</string>
 
     <string name="downloading_data">بارگیری اطلاعات ...</string>

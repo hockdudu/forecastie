@@ -17,6 +17,25 @@
     <string name="sunset">Solnedgang</string>
     <string name="uvindex">UV indeks</string>
 
+    <!-- 1: temperature; 2: unit -->
+    <string name="format_temperature">%1$.1f %2$s</string>
+    <!-- 1: description; 2: rain -->
+    <string name="format_description_with_rain">%1$s (%2$s)</string>
+    <!-- 1: wind speed; 2: unit; 3: direction -->
+    <string name="format_wind">Vind: %1$.1f %2$s %3$s</string>
+    <!-- 1: wind, beaufort scale -->
+    <string name="format_wind_beaufort">Vind: %1$s %2$s</string>
+    <!-- 1: pressure; 2: unit -->
+    <string name="format_pressure">Lufttryk: %1$.1f %2$s</string>
+    <!-- 1: humidity -->
+    <string name="format_humidity">Luftfugtighed: %1$d %%</string>
+    <!-- 1: time -->
+    <string name="format_sunrise">Solopgang: %1$tR</string>
+    <!-- 1: time -->
+    <string name="format_sunset">Solnedgang: %1$tR</string>
+    <!-- 1: uv index -->
+    <string name="format_uv_index">UV indeks: %1$s</string>
+
     <string name="last_update">Seneste opdatering:\n%s</string>
     <string name="last_update_widget">\nSeneste opdatering: %s</string>
 

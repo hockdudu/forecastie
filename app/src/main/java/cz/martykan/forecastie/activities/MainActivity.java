@@ -73,6 +73,7 @@ import cz.martykan.forecastie.fragments.AmbiguousLocationDialogFragment;
 import cz.martykan.forecastie.fragments.RecyclerViewFragment;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.LiveResponse;
 import cz.martykan.forecastie.utils.Response;
 import cz.martykan.forecastie.utils.UI;
@@ -309,8 +310,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
                     if (handleConnectionStatus(weatherLiveData.getStatus())) {
                         assert weather != null;
                         weatherIcon.setText(weather.getIcon());
-                        // TODO: Use resource string
-                        temperature.setText(new DecimalFormat("0.#").format(UnitConvertor.convertTemperature(Float.parseFloat(weather.getTemperature()), sp)) + " " + sp.getString("unit", "°C"));
+                        temperature.setText(getString(R.string.format_temperature, UnitConvertor.convertTemperature(Float.parseFloat(weather.getTemperature()), sp), sp.getString("unit", "°C")));
                     }
                 });
 
@@ -373,7 +373,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
                         longTermTodayWeather = new ArrayList<>();
                         longTermTomorrowWeather = new ArrayList<>();
                         longTermWeather = new ArrayList<>();
-
 
                         for (Weather weather : weathers) {
                             if (weather.getDate().before(tomorrow.getTime())) {
@@ -505,26 +504,25 @@ public class MainActivity extends BaseActivity implements LocationListener {
         // Pressure
         double pressure = UnitConvertor.convertPressure((float) Double.parseDouble(todayWeather.getPressure()), sp);
 
-        // TODO: OMG FIX THIS HUGE MESS
-        todayTemperature.setText(new DecimalFormat("0.#").format(temperature) + " " + sp.getString("unit", "°C"));
-        todayDescription.setText(todayWeather.getDescription().substring(0, 1).toUpperCase() +
-                todayWeather.getDescription().substring(1) + rainString);
+        todayTemperature.setText(getString(R.string.format_temperature, temperature, sp.getString("unit", "°C")));
+        todayDescription.setText(rainString.length() > 0 ? getString(R.string.format_description_with_rain, Formatting.capitalize(todayWeather.getDescription()), rainString) : Formatting.capitalize(todayWeather.getDescription()));
         if (sp.getString("speedUnit", "m/s").equals("bft")) {
-            todayWind.setText(getString(R.string.wind) + ": " +
-                    UnitConvertor.getBeaufortName((int) wind) +
-                    (todayWeather.isWindDirectionAvailable() ? " " + getWindDirectionString(sp, this, todayWeather) : ""));
+            todayWind.setText(getString(R.string.format_wind_beaufort, UnitConvertor.getBeaufortName((int) wind),
+                    todayWeather.isWindDirectionAvailable() ? getWindDirectionString(sp, this, todayWeather) : "")
+            );
         } else {
-            todayWind.setText(getString(R.string.wind) + ": " + new DecimalFormat("0.0").format(wind) + " " +
-                    localize(sp, "speedUnit", "m/s") +
-                    (todayWeather.isWindDirectionAvailable() ? " " + getWindDirectionString(sp, this, todayWeather) : ""));
+            todayWind.setText(getString(R.string.format_wind, wind,
+                    localize(sp, "speedUnit", "m/s"),
+                    todayWeather.isWindDirectionAvailable() ? getWindDirectionString(sp, this, todayWeather) : "")
+            );
         }
-        todayPressure.setText(getString(R.string.pressure) + ": " + new DecimalFormat("0.0").format(pressure) + " " +
-                localize(sp, "pressureUnit", "hPa"));
-        todayHumidity.setText(getString(R.string.humidity) + ": " + todayWeather.getHumidity() + " %");
-        todaySunrise.setText(getString(R.string.sunrise) + ": " + timeFormat.format(todayWeather.getSunrise()));
-        todaySunset.setText(getString(R.string.sunset) + ": " + timeFormat.format(todayWeather.getSunset()));
+        todayPressure.setText(getString(R.string.format_pressure, pressure, localize(sp, "pressureUnit", "hPa")));
+        // TODO: Convert humidity to int
+        todayHumidity.setText(getString(R.string.format_humidity, Integer.parseInt(todayWeather.getHumidity())));
+        todaySunrise.setText(getString(R.string.format_sunrise, todayWeather.getSunrise()));
+        todaySunset.setText(getString(R.string.format_sunset, todayWeather.getSunset()));
         todayIcon.setText(todayWeather.getIcon());
-        todayUvIndex.setText(getString(R.string.uvindex) + ": " + UnitConvertor.convertUvIndexToRiskLevel(todayWeather.getUvIndex()));
+        todayUvIndex.setText(getString(R.string.format_uv_index, UnitConvertor.convertUvIndexToRiskLevel(todayWeather.getUvIndex())));
         lastUpdate.setText(getString(R.string.last_update, formatTimeWithDayIfNotToday(this, todayWeather.getLastUpdated())));
 
         todayIcon.setOnClickListener(view -> {

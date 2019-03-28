@@ -15,6 +15,23 @@
     <string name="sunrise">G. Doğuşu</string>
     <string name="sunset">G. Batışı</string>
 
+    <!-- 1: temperature; 2: unit -->
+    <string name="format_temperature">%1$.1f %2$s</string>
+    <!-- 1: description; 2: rain -->
+    <string name="format_description_with_rain">%1$s (%2$s)</string>
+    <!-- 1: wind speed; 2: unit; 3: direction -->
+    <string name="format_wind">Rüzgar: %1$.1f %2$s %3$s</string>
+    <!-- 1: wind, beaufort scale -->
+    <string name="format_wind_beaufort">Rüzgar: %1$s %2$s</string>
+    <!-- 1: pressure; 2: unit -->
+    <string name="format_pressure">Basınç: %1$.1f %2$s</string>
+    <!-- 1: humidity -->
+    <string name="format_humidity">Nem: %1$d %%</string>
+    <!-- 1: time -->
+    <string name="format_sunrise">G. Doğuşu: %1$tR</string>
+    <!-- 1: time -->
+    <string name="format_sunset">G. Batışı: %1$tR</string>
+
     <string name="last_update">Son güncelleme:\\n%s</string>
     <string name="last_update_widget">\\nSon güncelleme: %s</string>
 

@@ -96,4 +96,21 @@
     <string name="wind_direction_west">Δ</string>
     <string name="wind_direction_west_north_west">ΔΝΔ</string>
     <string name="wind_direction_west_south_west">ΔΝΔ</string>
+
+    <!-- 1: temperature; 2: unit -->
+    <string name="format_temperature">%1$.1f %2$s</string>
+    <!-- 1: description; 2: rain -->
+    <string name="format_description_with_rain">%1$s (%2$s)</string>
+    <!-- 1: wind speed; 2: unit; 3: direction -->
+    <string name="format_wind">Ανεμος: %1$.1f %2$s %3$s</string>
+    <!-- 1: wind, beaufort scale -->
+    <string name="format_wind_beaufort">Ανεμος: %1$s %2$s</string>
+    <!-- 1: pressure; 2: unit -->
+    <string name="format_pressure">Πίεση: %1$.1f %2$s</string>
+    <!-- 1: humidity -->
+    <string name="format_humidity">Υγρασία: %1$d %%</string>
+    <!-- 1: time -->
+    <string name="format_sunrise">Ανατολή: %1$tR</string>
+    <!-- 1: time -->
+    <string name="format_sunset">Δύση: %1$tR</string>
 </resources>

@@ -1,6 +1,7 @@
 package cz.martykan.forecastie.utils;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 
 import cz.martykan.forecastie.R;
 
@@ -44,5 +45,13 @@ public class Formatting {
             }
         }
         return icon;
+    }
+
+    public static String capitalize(@NonNull String text) {
+        if (text.length() <= 1) {
+            return text.toUpperCase();
+        } else {
+            return text.substring(0, 1).toUpperCase() + text.substring(1);
+        }
     }
 }

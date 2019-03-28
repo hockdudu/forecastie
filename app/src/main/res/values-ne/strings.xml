@@ -14,6 +14,19 @@
     <string name="humidity">आर्द्रता</string>
     <string name="search_title">शहर खोज</string>
 
+    <!-- 1: temperature; 2: unit -->
+    <string name="format_temperature">%1$.1f %2$s</string>
+    <!-- 1: description; 2: rain -->
+    <string name="format_description_with_rain">%1$s (%2$s)</string>
+    <!-- 1: wind speed; 2: unit; 3: direction -->
+    <string name="format_wind">हावा: %1$.1f %2$s %3$s</string>
+    <!-- 1: wind, beaufort scale -->
+    <string name="format_wind_beaufort">हावा: %1$s %2$s</string>
+    <!-- 1: pressure; 2: unit -->
+    <string name="format_pressure">दबाव: %1$.1f %2$s</string>
+    <!-- 1: humidity -->
+    <string name="format_humidity">आर्द्रता: %1$d %%</string>
+
     <string name="downloading_data">डाउनलोड गरिरहेको छ</string>
     <string name="error_dateFormat">मिति ढाँचा त्रुटि</string>
 
