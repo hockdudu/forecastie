@@ -307,8 +307,9 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
 
                 weatherLiveData.getLiveData().observe(this, weather -> {
-                    if (handleConnectionStatus(weatherLiveData.getStatus())) {
-                        assert weather != null;
+                    handleConnectionStatus(weatherLiveData.getStatus());
+
+                    if (weather != null) {
                         weatherIcon.setText(weather.getIcon());
                         temperature.setText(getString(R.string.format_temperature, UnitConvertor.convertTemperature(Float.parseFloat(weather.getTemperature()), sp), sp.getString("unit", "°C")));
                     }
@@ -331,13 +332,14 @@ public class MainActivity extends BaseActivity implements LocationListener {
             if (handleConnectionStatus(currentCity.getStatus())) {
                 LiveResponse<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city, forceDownload);
                 weatherLiveData.getLiveData().observe(this, weather -> {
-                    if (handleConnectionStatus(weatherLiveData.getStatus())) {
+                    handleConnectionStatus(weatherLiveData.getStatus());
+
+                    if (weather != null) {
                         todayWeather = weather;
                         updateTodayWeatherUI();
-                        isDone.setValue(true);
-                    } else {
-                        isDone.setValue(true);
                     }
+
+                    isDone.setValue(true);
                 });
             } else {
                 isDone.setValue(true);
@@ -358,37 +360,35 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 forecastLiveData.getLiveData().observe(this, weathers -> {
                     assert weathers != null;
 
-                    if (handleConnectionStatus(forecastLiveData.getStatus())) {
-                        Calendar today = Calendar.getInstance();
-                        today.set(Calendar.HOUR_OF_DAY, 0);
-                        today.set(Calendar.MINUTE, 0);
-                        today.set(Calendar.SECOND, 0);
-                        today.set(Calendar.MILLISECOND, 0);
+                    handleConnectionStatus(forecastLiveData.getStatus());
 
-                        Calendar tomorrow = (Calendar) today.clone();
-                        tomorrow.add(Calendar.DAY_OF_YEAR, 1);
+                    Calendar today = Calendar.getInstance();
+                    today.set(Calendar.HOUR_OF_DAY, 0);
+                    today.set(Calendar.MINUTE, 0);
+                    today.set(Calendar.SECOND, 0);
+                    today.set(Calendar.MILLISECOND, 0);
 
-                        Calendar later = (Calendar) today.clone();
-                        later.add(Calendar.DAY_OF_YEAR, 2);
-                        longTermTodayWeather = new ArrayList<>();
-                        longTermTomorrowWeather = new ArrayList<>();
-                        longTermWeather = new ArrayList<>();
+                    Calendar tomorrow = (Calendar) today.clone();
+                    tomorrow.add(Calendar.DAY_OF_YEAR, 1);
 
-                        for (Weather weather : weathers) {
-                            if (weather.getDate().before(tomorrow.getTime())) {
-                                longTermTodayWeather.add(weather);
-                            } else if (weather.getDate().before(later.getTime())) {
-                                longTermTomorrowWeather.add(weather);
-                            } else {
-                                longTermWeather.add(weather);
-                            }
+                    Calendar later = (Calendar) today.clone();
+                    later.add(Calendar.DAY_OF_YEAR, 2);
+                    longTermTodayWeather = new ArrayList<>();
+                    longTermTomorrowWeather = new ArrayList<>();
+                    longTermWeather = new ArrayList<>();
+
+                    for (Weather weather : weathers) {
+                        if (weather.getDate().after(later.getTime())) {
+                            longTermWeather.add(weather);
+                        } else if (weather.getDate().after(tomorrow.getTime())) {
+                            longTermTomorrowWeather.add(weather);
+                        } else if (weather.getDate().after(today.getTime())) {
+                            longTermTodayWeather.add(weather);
                         }
-
-                        isDone.setValue(true);
-                        updateLongTermWeatherUI();
-                    } else {
-                        isDone.setValue(true);
                     }
+
+                    isDone.setValue(true);
+                    updateLongTermWeatherUI();
                 });
             } else {
                 isDone.setValue(true);
@@ -562,7 +562,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         viewPager.setAdapter(viewPagerAdapter);
         tabLayout.setupWithViewPager(viewPager);
 
-        if (currentPage == 0 && longTermTodayWeather.isEmpty()) {
+        if (currentPage == 0 && longTermTodayWeather.isEmpty() && !longTermTomorrowWeather.isEmpty()) {
             currentPage = 1;
         }
         viewPager.setCurrentItem(currentPage, false);
@@ -833,6 +833,11 @@ public class MainActivity extends BaseActivity implements LocationListener {
         switch (status) {
             case SUCCESS:
                 return true;
+            case IO_EXCEPTION:
+                if (!isNetworkAvailable()) {
+                    Snackbar.make(appView, R.string.msg_connection_not_available, Snackbar.LENGTH_LONG).show();
+                    return false;
+                }
             default:
                 Snackbar.make(appView, status.toString(), Snackbar.LENGTH_LONG).show();
                 return false;

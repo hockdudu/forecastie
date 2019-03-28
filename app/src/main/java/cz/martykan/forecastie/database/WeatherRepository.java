@@ -131,18 +131,20 @@ public class WeatherRepository extends AbstractRepository {
 
                 weatherLiveResponse.setResponse(downloadJson(provideForecastUrl(city)));
 
-                try {
-                    JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
-                    downloadedForecast = JsonParser.convertJsonToForecast(jsonObject, city, getFormatting());
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                    weatherLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);
-                }
+                if (weatherLiveResponse.getStatus() == Response.Status.SUCCESS) {
+                    try {
+                        JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
+                        downloadedForecast = JsonParser.convertJsonToForecast(jsonObject, city, getFormatting());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        weatherLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);
+                    }
 
-                if (downloadedForecast.size() != 0) {
-                    weatherDao.delete(weathers.toArray(new Weather[0]));
-                    weatherDao.insertAll(downloadedForecast.toArray(new Weather[0]));
-                    weathers = downloadedForecast;
+                    if (downloadedForecast.size() != 0) {
+                        weatherDao.delete(weathers.toArray(new Weather[0]));
+                        weatherDao.insertAll(downloadedForecast.toArray(new Weather[0]));
+                        weathers = downloadedForecast;
+                    }
                 }
             } else {
                 weatherLiveResponse.setStatus(Response.Status.SUCCESS);
