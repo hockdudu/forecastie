@@ -12,7 +12,7 @@ import java.io.Serializable;
 @Entity(foreignKeys = {@ForeignKey(entity = Weather.class, childColumns = "currentWeatherId", parentColumns = "uid", onUpdate = ForeignKey.CASCADE, onDelete = ForeignKey.RESTRICT)})
 public class City implements Serializable {
 
-    @PrimaryKey(autoGenerate = true)
+    @PrimaryKey
     private int id;
     private String city;
     private String country;

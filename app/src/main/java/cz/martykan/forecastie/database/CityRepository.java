@@ -28,17 +28,12 @@ public class CityRepository extends AbstractRepository {
         this.cityDao = cityDao;
     }
 
-    /**
-     * @param city The City object to save
-     * @return True if the city was successfully saved, false if it already existed
-     */
-    public boolean addCity(City city) {
-        if (cityDao.findById(city.getId()) == null) {
-            cityDao.insertAll(city);
-            return true;
-        }
-
-        return false;
+    public void addCity(City city) {
+        AppDatabase.getDatabase(context).runInTransaction(() -> {
+            if (cityDao.findById(city.getId()) == null) {
+                cityDao.insertAll(city);
+            }
+        });
     }
 
     public LiveResponse<List<Weather>> searchCity(String cityName) {

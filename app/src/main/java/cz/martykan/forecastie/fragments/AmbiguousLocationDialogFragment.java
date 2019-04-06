@@ -94,6 +94,7 @@ public class AmbiguousLocationDialogFragment extends DialogFragment implements L
         cityRepository = new CityRepository(AppDatabase.getDatabase(getContext()).cityDao(), getContext());
     }
 
+    // TODO: THAT'S SO GODDAMN UGLY, PLEASE DON'T START A NEW ACTIVITY, NO, JUST DON'T!
     @Override
     public void onItemClickListener(View view, int position) {
         Runnable runnable = () -> {
@@ -104,8 +105,6 @@ public class AmbiguousLocationDialogFragment extends DialogFragment implements L
             cityRepository.addCity(weather.getCity());
             bundle.putBoolean("shouldRefresh", true);
             intent.putExtras(bundle);
-
-            // Probably error
             startActivity(intent);
         };
 

@@ -29,9 +29,6 @@ public interface WeatherDao {
     @Insert
     long[] insertAll(Weather... weathers);
 
-    @Insert
-    long insert(Weather weather);
-
     @Delete
     void delete(Weather... weather);
 

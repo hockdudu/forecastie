@@ -67,7 +67,7 @@ public class WeatherRepository extends AbstractRepository {
                     }
 
                     if (downloadedWeather != null) {
-                        long id = weatherDao.insert(downloadedWeather);
+                        long id = weatherDao.insertAll(downloadedWeather)[0];
                         downloadedWeather.setUid(id);
                         city.setCurrentWeatherId(id);
                         cityDao.persist(city);

@@ -3,7 +3,6 @@ package cz.martykan.forecastie.activities;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
-import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -235,8 +234,8 @@ public class MainActivity extends BaseActivity implements LocationListener {
     @Override
     public void onStart() {
         super.onStart();
-        updateTodayWeatherUI();
-        updateLongTermWeatherUI();
+        updateWeatherUI();
+        updateForecastUI();
 
         Calendar today = Calendar.getInstance();
         today.set(Calendar.HOUR_OF_DAY, 0);
@@ -294,6 +293,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
         // TODO: Is there any other way of getting this color?
         searchIcon.setColorFilter(addLocationText.getCurrentTextColor(), PorterDuff.Mode.SRC_IN);
 
+        refreshDrawer();
+    }
+
+    private void refreshDrawer() {
         LiveResponse<List<City>> citiesLiveData = cityRepository.getCities();
         citiesLiveData.getLiveData().observe(this, cities -> {
             assert cities != null;
@@ -321,18 +324,47 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
                     Handler handler = new Handler();
 
+                    // TODO: You shouldn't access DAOs directly, use repositories for that
                     Runnable runnable = () -> {
                         Log.i("CityDeletion", String.format("City deleted: %s (%d)", city, city.getId()));
+
+                        Weather cityWeather;
+                        List<Weather> cityForecast;
+                        if (city.getCurrentWeatherId() != null) {
+                            cityWeather = AppDatabase.getDatabase(this).weatherDao().findByUid(city.getCurrentWeatherId());
+                            cityForecast = AppDatabase.getDatabase(this).weatherDao().findForecast(city.getId(), city.getCurrentWeatherId());
+                        } else {
+                            cityWeather = null;
+                            cityForecast = AppDatabase.getDatabase(this).weatherDao().findForecast(city.getId(), 0);
+                        }
+
                         cityRepository.deleteCity(city);
 
                         Snackbar snackbar = Snackbar.make(appView, R.string.city_deleted, Snackbar.LENGTH_LONG);
                         snackbar.setAction(R.string.undo, snackView -> {
-                            cityRepository.addCity(city);
-                            // TODO: Refresh list
+                            // This action is called on the UI, so we need another runnable :P
+                            Runnable runnable1 = () -> {
+                                AppDatabase.getDatabase(this).runInTransaction(() -> {
+                                    city.setCurrentWeatherId(null);
+                                    cityRepository.addCity(city);
+
+                                    if (cityWeather != null) {
+                                        AppDatabase.getDatabase(this).weatherDao().insertAll(cityWeather);
+                                        city.setCurrentWeatherId(cityWeather.getUid());
+                                        AppDatabase.getDatabase(this).cityDao().persist(city);
+                                    }
+
+                                    AppDatabase.getDatabase(this).weatherDao().insertAll(cityForecast.toArray(new Weather[0]));
+
+                                    handler.post(this::refreshDrawer);
+                                });
+                            };
+
+                            new Thread(runnable1).start();
                         });
 
                         handler.post(() -> {
-                            // TODO: Refresh list
+                            refreshDrawer();
                             snackbar.show();
                         });
 
@@ -365,9 +397,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         });
     }
 
-    // TODO: There must have a better alternative than a boolean live data
-    private LiveData<Boolean> updateTodayWeather(boolean forceDownload) {
-        MutableLiveData<Boolean> isDone = new MutableLiveData<>();
+    private void updateTodayWeather(boolean forceDownload, Runnable onFinish) {
         LiveResponse<City> currentCity = cityRepository.getCity(recentCityId);
 
         currentCity.getLiveData().observe(this, city -> {
@@ -378,22 +408,18 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
                     if (weather != null) {
                         todayWeather = weather;
-                        updateTodayWeatherUI();
+                        updateWeatherUI();
                     }
 
-                    isDone.setValue(true);
+                    onFinish.run();
                 });
             } else {
-                isDone.setValue(true);
+                onFinish.run();
             }
         });
-
-        return isDone;
     }
 
-    private LiveData<Boolean> updateForecast(boolean forceDownload) {
-        MutableLiveData<Boolean> isDone = new MutableLiveData<>();
-
+    private void updateForecast(boolean forceDownload, Runnable onFinish) {
         LiveResponse<City> currentCity = cityRepository.getCity(recentCityId);
         currentCity.getLiveData().observe(this, city -> {
             if (handleConnectionStatus(currentCity.getStatus())) {
@@ -402,20 +428,18 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 forecastLiveData.getLiveData().observe(this, weathers -> {
                     assert weathers != null;
 
+                    forecast = weathers;
                     handleConnectionStatus(forecastLiveData.getStatus());
 
-                    forecast = weathers;
+                    updateForecastUI();
 
-                    isDone.setValue(true);
-                    updateLongTermWeatherUI();
+                    onFinish.run();
                 });
             } else {
-                isDone.setValue(true);
+                onFinish.run();
             }
 
         });
-
-        return isDone;
     }
 
     // TODO: Use something else than alert?
@@ -443,22 +467,28 @@ public class MainActivity extends BaseActivity implements LocationListener {
                             // TODO: We cant return it here, do something else
                             // return ParseResult.CITY_NOT_FOUND;
                         } else if (citiesList.size() == 1) {
-                            saveLocation(citiesList.get(0).getCity());
+                            saveLocation(citiesList.get(0).getCity(), () -> {
+                                refreshDrawer();
+                                updateWeatherUI();
+                                updateForecastUI();
+                            });
                         } else {
                             launchLocationPickerDialog(citiesList);
+                            // TODO: Refresh drawer
                         }
-                        // TODO: Redraw drawer
                     }
                 });
             }
         });
-        alert.setNegativeButton(R.string.dialog_cancel, (dialog, whichButton) -> {
-            // Cancelled
-        });
+        alert.setNegativeButton(R.string.dialog_cancel, null);
         alert.show();
     }
 
     private void saveLocation(City city) {
+        saveLocation(city, null);
+    }
+
+    private void saveLocation(City city, Runnable onFinish) {
         recentCityId = city.getId();
 
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -468,10 +498,14 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         CityDao cityDao = appDatabase.cityDao();
 
+        Handler handler = new Handler();
+
         Runnable runnable = () -> {
             if (cityDao.findById(city.getId()) == null) {
                 cityDao.insertAll(city);
             }
+
+            handler.post(onFinish);
         };
 
         new Thread(runnable).start();
@@ -489,12 +523,13 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     // TODO: Check why this is called twice
-    private void updateTodayWeatherUI() {
+    private void updateWeatherUI() {
         if (todayWeather == null) { // If it wasn't initialized yet
             refreshWeather();
             return;
         }
 
+        // TODO: Verify why this isn't used now resp. how it was used before
         DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(getApplicationContext());
         // TODO: Fix inspection
         //noinspection ConstantConditions
@@ -553,7 +588,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         });
     }
 
-    private void updateLongTermWeatherUI() {
+    private void updateForecastUI() {
         if (destroyed) {
             return;
         }
@@ -649,27 +684,25 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     public void refreshWeather() {
-        swipeRefreshLayout.setRefreshing(true);
-        LiveData<Boolean> isWeatherDownloaded = updateTodayWeather(false);
-        LiveData<Boolean> isForecastDownloaded = updateForecast(false);
+        refreshWeather(false);
+    }
 
-        isWeatherDownloaded.observe(this, weatherDownloaded ->
-                isForecastDownloaded.observe(this, forecastDownloaded ->
-                        swipeRefreshLayout.setRefreshing(false)
-                )
-        );
+    public void refreshWeather(boolean forceDownload) {
+        swipeRefreshLayout.setRefreshing(true);
+        MutableLiveData<Integer> finishCount = new MutableLiveData<>();
+        Runnable updateFinishCountValue = () -> finishCount.setValue((finishCount.getValue() != null ? finishCount.getValue() : 0) + 1);
+
+        updateTodayWeather(forceDownload, updateFinishCountValue);
+        updateForecast(forceDownload, updateFinishCountValue);
+
+        finishCount.observe(this, value -> {
+            if (value != null && value == 2) swipeRefreshLayout.setRefreshing(false);
+        });
     }
 
     public void downloadWeather() {
         if (isNetworkAvailable()) {
-            swipeRefreshLayout.setRefreshing(true);
-            LiveData<Boolean> isWeatherDownloaded = updateTodayWeather(true);
-            LiveData<Boolean> isForecastDownloaded = updateForecast(true);
-
-            isWeatherDownloaded.observe(this, weatherDownloaded ->
-                    isForecastDownloaded.observe(this, forecastDownloaded ->
-                            swipeRefreshLayout.setRefreshing(false)
-                    ));
+            refreshWeather(true);
         } else {
             Snackbar.make(appView, getString(R.string.msg_connection_not_available), Snackbar.LENGTH_LONG).show();
             swipeRefreshLayout.setRefreshing(false);
@@ -694,6 +727,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         return localize(sp, this, preferenceKey, defaultValueKey);
     }
 
+    // TODO: This static method shouldn't be part of MainActivity
     public static String localize(SharedPreferences sp, Context context, String preferenceKey, String defaultValueKey) {
         String preferenceValue = sp.getString(preferenceKey, defaultValueKey);
         String result = preferenceValue;
@@ -726,7 +760,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
         return "";
     }
 
-    // TODO:
     void getCityByLocation() {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
@@ -790,6 +823,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         }
     }
 
+    // TODO: Plan a way of deleting old cities
     @Override
     public void onLocationChanged(Location location) {
         progressDialog.hide();
@@ -803,10 +837,8 @@ public class MainActivity extends BaseActivity implements LocationListener {
         LiveResponse<City> cityLiveData = cityRepository.findCity(location);
 
         cityLiveData.getLiveData().observe(this, city -> {
-            // TODO: What do we do if city if city is null?
-            if (city != null) {
-                saveLocation(city);
-            }
+            assert city != null;
+            saveLocation(city);
         });
     }
 
