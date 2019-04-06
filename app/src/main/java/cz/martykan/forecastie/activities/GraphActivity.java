@@ -6,7 +6,6 @@ import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.support.design.widget.Snackbar;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.widget.TextView;
@@ -16,23 +15,17 @@ import com.db.chart.model.LineSet;
 import com.db.chart.view.ChartView;
 import com.db.chart.view.LineChartView;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.TimeZone;
 
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
-import cz.martykan.forecastie.tasks.ParseResult;
-import cz.martykan.forecastie.utils.JsonParser;
 import cz.martykan.forecastie.utils.UnitConverter;
 
 public class GraphActivity extends BaseActivity {
 
-    ArrayList<Weather> weatherList = new ArrayList<>();
+    List<Weather> weatherList;
 
     float minTemp = 100000;
     float maxTemp = 0;
@@ -49,6 +42,9 @@ public class GraphActivity extends BaseActivity {
     private String labelColor = "#000000";
     private String lineColor = "#333333";
 
+    public static String EXTRA_CITY = "extra_city";
+
+    @SuppressWarnings("unchecked")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -75,15 +71,15 @@ public class GraphActivity extends BaseActivity {
             windSpeedTextView.setTextColor(Color.parseColor(labelColor));
         }
 
-        String lastLongterm = prefs.getString("lastLongterm", "");
+        if (getIntent().hasExtra(EXTRA_CITY)) {
+            weatherList = (List<Weather>) getIntent().getSerializableExtra(EXTRA_CITY);
 
-        if (parseLongTermJson(lastLongterm) == ParseResult.OK) {
             temperatureGraph(prefs);
             rainGraph();
             pressureGraph(prefs);
             windSpeedGraph(prefs);
         } else {
-            Snackbar.make(findViewById(android.R.id.content), R.string.msg_err_parsing_json, Snackbar.LENGTH_LONG).show();
+            Log.e("GraphActivity", "No extra was given");
         }
     }
 
@@ -112,13 +108,7 @@ public class GraphActivity extends BaseActivity {
         lineChartView.addData(dataset);
 
         // Grid
-        Paint paint = new Paint();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setAntiAlias(true);
-        paint.setColor(Color.parseColor(lineColor));
-        paint.setPathEffect(new DashPathEffect(new float[]{10, 10}, 0));
-        paint.setStrokeWidth(1);
-        lineChartView.setGrid(ChartView.GridType.HORIZONTAL, paint);
+        lineChartView.setGrid(ChartView.GridType.HORIZONTAL, getPaint());
         lineChartView.setBorderSpacing(Tools.fromDpToPx(10));
         lineChartView.setAxisBorderValues(Math.round(minTemp) - 1, Math.round(maxTemp) + 1);
         lineChartView.setStep(2);
@@ -154,13 +144,7 @@ public class GraphActivity extends BaseActivity {
         lineChartView.addData(dataset);
 
         // Grid
-        Paint paint = new Paint();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setAntiAlias(true);
-        paint.setColor(Color.parseColor(lineColor));
-        paint.setPathEffect(new DashPathEffect(new float[]{10, 10}, 0));
-        paint.setStrokeWidth(1);
-        lineChartView.setGrid(ChartView.GridType.HORIZONTAL, paint);
+        lineChartView.setGrid(ChartView.GridType.HORIZONTAL, getPaint());
         lineChartView.setBorderSpacing(Tools.fromDpToPx(10));
         lineChartView.setAxisBorderValues(0, (Math.round(maxRain)) + 1);
         lineChartView.setStep(1);
@@ -189,6 +173,7 @@ public class GraphActivity extends BaseActivity {
 
             dataset.addPoint(getDateLabel(weatherList.get(i), i), pressure);
         }
+        // TODO: Why is this specific graph smooth but the others arent?
         dataset.setSmooth(true);
         dataset.setColor(Color.parseColor("#4CAF50"));
         dataset.setThickness(4);
@@ -196,13 +181,7 @@ public class GraphActivity extends BaseActivity {
         lineChartView.addData(dataset);
 
         // Grid
-        Paint paint = new Paint();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setAntiAlias(true);
-        paint.setColor(Color.parseColor(lineColor));
-        paint.setPathEffect(new DashPathEffect(new float[]{10, 10}, 0));
-        paint.setStrokeWidth(1);
-        lineChartView.setGrid(ChartView.GridType.HORIZONTAL, paint);
+        lineChartView.setGrid(ChartView.GridType.HORIZONTAL, getPaint());
         lineChartView.setBorderSpacing(Tools.fromDpToPx(10));
         lineChartView.setAxisBorderValues((int) minPressure - 1, (int) maxPressure + 1);
         lineChartView.setStep(2);
@@ -243,13 +222,7 @@ public class GraphActivity extends BaseActivity {
         lineChartView.addData(dataset);
 
         // Grid
-        Paint paint = new Paint();
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setAntiAlias(true);
-        paint.setColor(Color.parseColor(lineColor));
-        paint.setPathEffect(new DashPathEffect(new float[]{10, 10}, 0));
-        paint.setStrokeWidth(1);
-        lineChartView.setGrid(ChartView.GridType.HORIZONTAL, paint);
+        lineChartView.setGrid(ChartView.GridType.HORIZONTAL, getPaint());
         lineChartView.setBorderSpacing(Tools.fromDpToPx(10));
         lineChartView.setAxisBorderValues((int) minWindSpeed - 1, (int) maxWindSpeed + 1);
         lineChartView.setStep(2);
@@ -260,55 +233,9 @@ public class GraphActivity extends BaseActivity {
         lineChartView.show();
     }
 
-    // TODO: Use common parser
-    public ParseResult parseLongTermJson(String result) {
-        int i;
-        try {
-            JSONObject reader = new JSONObject(result);
-
-            final String code = reader.optString("cod");
-            if ("404".equals(code)) {
-                return ParseResult.CITY_NOT_FOUND;
-            }
-
-            JSONArray list = reader.getJSONArray("list");
-            for (i = 0; i < list.length(); i++) {
-                Weather weather = new Weather();
-
-                JSONObject listItem = list.getJSONObject(i);
-                JSONObject main = listItem.getJSONObject("main");
-
-                JSONObject windObj = listItem.optJSONObject("wind");
-                weather.setWind(windObj.getString("speed"));
-
-                weather.setPressure(main.getString("pressure"));
-                weather.setHumidity(main.getString("humidity"));
-
-                JSONObject rainObj = listItem.optJSONObject("rain");
-                JSONObject snowObj = listItem.optJSONObject("snow");
-                if (rainObj != null) {
-                    weather.setRain(JsonParser.getRainString(rainObj));
-                } else {
-                    weather.setRain(JsonParser.getRainString(snowObj));
-                }
-
-                weather.setDate(listItem.getString("dt"));
-                weather.setTemperature(main.getString("temp"));
-
-                weatherList.add(weather);
-            }
-        } catch (JSONException e) {
-            Log.e("JSONException Data", result);
-            e.printStackTrace();
-            return ParseResult.JSON_EXCEPTION;
-        }
-
-        return ParseResult.OK;
-    }
-
     String previous = "";
 
-    public String getDateLabel(Weather weather, int i) {
+    private String getDateLabel(Weather weather, int i) {
         if ((i + 4) % 4 == 0) {
             // TODO: User locale?
             SimpleDateFormat resultFormat = new SimpleDateFormat("E");
@@ -323,5 +250,16 @@ public class GraphActivity extends BaseActivity {
         } else {
             return "";
         }
+    }
+
+    private Paint getPaint() {
+        Paint paint = new Paint();
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setAntiAlias(true);
+        paint.setColor(Color.parseColor(lineColor));
+        paint.setPathEffect(new DashPathEffect(new float[]{10, 10}, 0));
+        paint.setStrokeWidth(1);
+
+        return paint;
     }
 }

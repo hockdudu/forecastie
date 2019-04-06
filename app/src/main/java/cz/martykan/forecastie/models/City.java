@@ -1,6 +1,7 @@
 package cz.martykan.forecastie.models;
 
 
+import android.arch.persistence.room.ColumnInfo;
 import android.arch.persistence.room.Entity;
 import android.arch.persistence.room.ForeignKey;
 import android.arch.persistence.room.PrimaryKey;
@@ -17,7 +18,7 @@ public class City implements Serializable {
     private String country;
     private double lat;
     private double lon;
-    @Nullable
+    @Nullable @ColumnInfo(index = true)
     private Long currentWeatherId;
 
     public int getId() {

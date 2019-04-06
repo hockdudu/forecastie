@@ -91,6 +91,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
     @Nullable
     private Weather todayWeather;
+    private List<Weather> forecast = Collections.emptyList();
+
+    private Date tomorrow;
+    private Date later;
 
     private TextView todayTemperature;
     private TextView todayDescription;
@@ -118,10 +122,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private int theme;
     private boolean widgetTransparent;
     private boolean destroyed = false;
-
-    private List<Weather> longTermWeather = new ArrayList<>();
-    private List<Weather> longTermTodayWeather = new ArrayList<>();
-    private List<Weather> longTermTomorrowWeather = new ArrayList<>();
 
     public int recentCityId;
 
@@ -223,11 +223,11 @@ public class MainActivity extends BaseActivity implements LocationListener {
     public WeatherRecyclerAdapter getAdapter(int id) {
         WeatherRecyclerAdapter weatherRecyclerAdapter;
         if (id == 0) {
-            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, longTermTodayWeather);
+            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastToday());
         } else if (id == 1) {
-            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, longTermTomorrowWeather);
+            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastTomorrow());
         } else {
-            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, longTermWeather);
+            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastLater());
         }
         return weatherRecyclerAdapter;
     }
@@ -237,6 +237,20 @@ public class MainActivity extends BaseActivity implements LocationListener {
         super.onStart();
         updateTodayWeatherUI();
         updateLongTermWeatherUI();
+
+        Calendar today = Calendar.getInstance();
+        today.set(Calendar.HOUR_OF_DAY, 0);
+        today.set(Calendar.MINUTE, 0);
+        today.set(Calendar.SECOND, 0);
+        today.set(Calendar.MILLISECOND, 0);
+
+        Calendar tomorrow = (Calendar) today.clone();
+        tomorrow.add(Calendar.DAY_OF_YEAR, 1);
+        this.tomorrow = tomorrow.getTime();
+
+        Calendar later = (Calendar) today.clone();
+        later.add(Calendar.DAY_OF_YEAR, 2);
+        this.later = later.getTime();
     }
 
     @Override
@@ -351,6 +365,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         });
     }
 
+    // TODO: There must have a better alternative than a boolean live data
     private LiveData<Boolean> updateTodayWeather(boolean forceDownload) {
         MutableLiveData<Boolean> isDone = new MutableLiveData<>();
         LiveResponse<City> currentCity = cityRepository.getCity(recentCityId);
@@ -389,30 +404,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
                     handleConnectionStatus(forecastLiveData.getStatus());
 
-                    Calendar today = Calendar.getInstance();
-                    today.set(Calendar.HOUR_OF_DAY, 0);
-                    today.set(Calendar.MINUTE, 0);
-                    today.set(Calendar.SECOND, 0);
-                    today.set(Calendar.MILLISECOND, 0);
-
-                    Calendar tomorrow = (Calendar) today.clone();
-                    tomorrow.add(Calendar.DAY_OF_YEAR, 1);
-
-                    Calendar later = (Calendar) today.clone();
-                    later.add(Calendar.DAY_OF_YEAR, 2);
-                    longTermTodayWeather = new ArrayList<>();
-                    longTermTomorrowWeather = new ArrayList<>();
-                    longTermWeather = new ArrayList<>();
-
-                    for (Weather weather : weathers) {
-                        if (weather.getDate().after(later.getTime())) {
-                            longTermWeather.add(weather);
-                        } else if (weather.getDate().after(tomorrow.getTime())) {
-                            longTermTomorrowWeather.add(weather);
-                        } else if (weather.getDate().after(today.getTime())) {
-                            longTermTodayWeather.add(weather);
-                        }
-                    }
+                    forecast = weathers;
 
                     isDone.setValue(true);
                     updateLongTermWeatherUI();
@@ -556,6 +548,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         todayIcon.setOnClickListener(view -> {
             Intent intent = new Intent(MainActivity.this, GraphActivity.class);
+            intent.putExtra(GraphActivity.EXTRA_CITY, (Serializable) forecast);
             startActivity(intent);
         });
     }
@@ -591,7 +584,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         viewPager.setAdapter(viewPagerAdapter);
         tabLayout.setupWithViewPager(viewPager);
 
-        if (currentPage == 0 && longTermTodayWeather.isEmpty() && !longTermTomorrowWeather.isEmpty()) {
+        if (currentPage == 0 && getForecastToday().isEmpty() && !getForecastTomorrow().isEmpty()) {
             currentPage = 1;
         }
         viewPager.setCurrentItem(currentPage, false);
@@ -635,6 +628,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
             }
             case R.id.action_graphs: {
                 Intent intent = new Intent(MainActivity.this, GraphActivity.class);
+                intent.putExtra(GraphActivity.EXTRA_CITY, (Serializable) forecast);
                 startActivity(intent);
                 return true;
             }
@@ -829,6 +823,44 @@ public class MainActivity extends BaseActivity implements LocationListener {
     @Override
     public void onProviderDisabled(String provider) {
 
+    }
+
+    private List<Weather> getForecastToday() {
+        ArrayList<Weather> weathers = new ArrayList<>();
+
+        for (Weather weather : forecast) {
+            if (weather.getDate().before(tomorrow)) {
+                weathers.add(weather);
+            }
+        }
+
+        return weathers;
+    }
+
+    private List<Weather> getForecastTomorrow() {
+        ArrayList<Weather> weathers = new ArrayList<>();
+
+        for (Weather weather : forecast) {
+            // The order is inverted for performance reasons, although it really might be negligible
+            // Natural order would be .equals(tomorrow) || .after(tomorrow) && .before(later)
+            if (weather.getDate().before(later) && weather.getDate().after(tomorrow) || weather.getDate().equals(tomorrow)) {
+                weathers.add(weather);
+            }
+        }
+
+        return weathers;
+    }
+
+    private List<Weather> getForecastLater() {
+        ArrayList<Weather> weathers = new ArrayList<>();
+
+        for (Weather weather : forecast) {
+            if (weather.getDate().after(later) || weather.getDate().equals(later)) {
+                weathers.add(weather);
+            }
+        }
+
+        return weathers;
     }
 
     private void launchLocationPickerDialog(List<Weather> cityList) {

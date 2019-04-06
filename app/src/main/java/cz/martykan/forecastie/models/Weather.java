@@ -1,5 +1,6 @@
 package cz.martykan.forecastie.models;
 
+import android.arch.persistence.room.ColumnInfo;
 import android.arch.persistence.room.Entity;
 import android.arch.persistence.room.ForeignKey;
 import android.arch.persistence.room.Ignore;
@@ -24,6 +25,7 @@ public class Weather implements Serializable {
     private long uid;
     @Ignore
     private City city;
+    @ColumnInfo(index = true)
     private int cityId;
     @TypeConverters(AppTypeConverter.class)
     private Date date;
