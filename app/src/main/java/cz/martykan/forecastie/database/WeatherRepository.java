@@ -70,17 +70,16 @@ public class WeatherRepository extends AbstractRepository {
                     }
 
                     if (downloadedWeather != null) {
+                        if (currentWeather != null) {
+                            weatherDao.delete(currentWeather);
+                        }
+
                         long id = weatherDao.insert(downloadedWeather);
                         downloadedWeather.setUid(id);
                         downloadedWeather.setUvIndex(currentUVIndex);
                         city.setCurrentWeatherId(id);
                         cityDao.persist(city);
-                    }
 
-                    if (downloadedWeather != null) {
-                        if (currentWeather != null) {
-                            weatherDao.delete(currentWeather);
-                        }
                         currentWeather = downloadedWeather;
                     }
                 } else {

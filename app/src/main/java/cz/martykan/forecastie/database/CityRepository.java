@@ -170,6 +170,10 @@ public class CityRepository extends AbstractRepository {
         return cityLiveResponse;
     }
 
+    public void deleteCity(City... cities) {
+        cityDao.delete(cities);
+    }
+
     private URL provideCityLocationSearchUrl(Location location) {
         HashMap<String, String> params = new HashMap<>();
         params.put("lat", String.valueOf(location.getLatitude()));

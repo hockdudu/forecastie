@@ -25,5 +25,5 @@ public interface CityDao {
     void persist(City city);
 
     @Delete
-    void delete(City city);
+    void delete(City... city);
 }

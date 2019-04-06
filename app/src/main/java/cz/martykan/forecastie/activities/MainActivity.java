@@ -18,6 +18,7 @@ import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
@@ -280,14 +281,16 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         ImageView searchIcon = sidebarDrawer.findViewById(R.id.searchIcon);
         TextView addLocationText = sidebarDrawer.findViewById(R.id.addLocation);
+        // TODO: Is there any other way of getting this color?
         searchIcon.setColorFilter(addLocationText.getCurrentTextColor(), PorterDuff.Mode.SRC_IN);
 
         LiveResponse<List<City>> citiesLiveData = cityRepository.getCities();
         citiesLiveData.getLiveData().observe(this, cities -> {
             assert cities != null;
 
-            // TODO: Handle empty list
+            // TODO: Add "current location" support
             LinearLayout citiesList = sidebarDrawer.findViewById(R.id.citiesList);
+            citiesList.removeAllViews();
             Collections.sort(cities, (o1, o2) -> o1.getCity().compareTo(o2.getCity()));
             for (int i = 0; i < cities.size(); i++) {
                 City city = cities.get(i);
@@ -299,6 +302,34 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
                 TextView cityName = drawerItem.findViewById(R.id.cityName);
                 cityName.setText(city.toString());
+
+                ImageView removeButton = drawerItem.findViewById(R.id.removeLocationIcon);
+                // TODO: Is there any other way of getting this color?
+                removeButton.setColorFilter(weatherIcon.getCurrentTextColor(), PorterDuff.Mode.SRC_IN);
+                removeButton.setOnClickListener(removeButtonView -> {
+                    drawerLayout.closeDrawers();
+
+                    Handler handler = new Handler();
+
+                    Runnable runnable = () -> {
+                        Log.i("CityDeletion", String.format("City deleted: %s (%d)", city, city.getId()));
+                        cityRepository.deleteCity(city);
+
+                        Snackbar snackbar = Snackbar.make(appView, R.string.city_deleted, Snackbar.LENGTH_LONG);
+                        snackbar.setAction(R.string.undo, snackView -> {
+                            cityRepository.addCity(city);
+                            // TODO: Refresh list
+                        });
+
+                        handler.post(() -> {
+                            // TODO: Refresh list
+                            snackbar.show();
+                        });
+
+                    };
+
+                    new Thread(runnable).start();
+                });
 
                 TextView temperature = drawerItem.findViewById(R.id.temperature);
 
@@ -399,6 +430,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         return isDone;
     }
 
+    // TODO: Use something else than alert?
     @SuppressLint("RestrictedApi")
     private void searchCities() {
         AlertDialog.Builder alert = new AlertDialog.Builder(this);
@@ -427,6 +459,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
                         } else {
                             launchLocationPickerDialog(citiesList);
                         }
+                        // TODO: Redraw drawer
                     }
                 });
             }
