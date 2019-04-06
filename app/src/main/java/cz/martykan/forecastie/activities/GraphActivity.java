@@ -28,13 +28,9 @@ import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.tasks.ParseResult;
 import cz.martykan.forecastie.utils.JsonParser;
-import cz.martykan.forecastie.utils.UnitConvertor;
+import cz.martykan.forecastie.utils.UnitConverter;
 
 public class GraphActivity extends BaseActivity {
-
-    SharedPreferences sp;
-
-    int theme;
 
     ArrayList<Weather> weatherList = new ArrayList<>();
 
@@ -53,17 +49,9 @@ public class GraphActivity extends BaseActivity {
     private String labelColor = "#000000";
     private String lineColor = "#333333";
 
-    private boolean darkTheme = false;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        setTheme(theme = getTheme(prefs.getString("theme", "fresh")));
-        darkTheme = theme == R.style.AppTheme_NoActionBar_Dark ||
-                theme == R.style.AppTheme_NoActionBar_Black ||
-                theme == R.style.AppTheme_NoActionBar_Classic_Dark ||
-                theme == R.style.AppTheme_NoActionBar_Classic_Black;
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_graph);
 
@@ -87,26 +75,25 @@ public class GraphActivity extends BaseActivity {
             windSpeedTextView.setTextColor(Color.parseColor(labelColor));
         }
 
-        sp = PreferenceManager.getDefaultSharedPreferences(GraphActivity.this);
-        String lastLongterm = sp.getString("lastLongterm", "");
+        String lastLongterm = prefs.getString("lastLongterm", "");
 
         if (parseLongTermJson(lastLongterm) == ParseResult.OK) {
-            temperatureGraph();
+            temperatureGraph(prefs);
             rainGraph();
-            pressureGraph();
-            windSpeedGraph();
+            pressureGraph(prefs);
+            windSpeedGraph(prefs);
         } else {
             Snackbar.make(findViewById(android.R.id.content), R.string.msg_err_parsing_json, Snackbar.LENGTH_LONG).show();
         }
     }
 
-    private void temperatureGraph() {
-        LineChartView lineChartView = (LineChartView) findViewById(R.id.graph_temperature);
+    private void temperatureGraph(SharedPreferences sp) {
+        LineChartView lineChartView = findViewById(R.id.graph_temperature);
 
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float temperature = UnitConvertor.convertTemperature(Float.parseFloat(weatherList.get(i).getTemperature()), sp);
+            float temperature = UnitConverter.convertTemperature(Float.parseFloat(weatherList.get(i).getTemperature()), sp);
 
             if (temperature < minTemp) {
                 minTemp = temperature;
@@ -133,7 +120,7 @@ public class GraphActivity extends BaseActivity {
         paint.setStrokeWidth(1);
         lineChartView.setGrid(ChartView.GridType.HORIZONTAL, paint);
         lineChartView.setBorderSpacing(Tools.fromDpToPx(10));
-        lineChartView.setAxisBorderValues((int) (Math.round(minTemp)) - 1, (int) (Math.round(maxTemp)) + 1);
+        lineChartView.setAxisBorderValues(Math.round(minTemp) - 1, Math.round(maxTemp) + 1);
         lineChartView.setStep(2);
         lineChartView.setXAxis(false);
         lineChartView.setYAxis(false);
@@ -143,7 +130,7 @@ public class GraphActivity extends BaseActivity {
     }
 
     private void rainGraph() {
-        LineChartView lineChartView = (LineChartView) findViewById(R.id.graph_rain);
+        LineChartView lineChartView = findViewById(R.id.graph_rain);
 
         // Data
         LineSet dataset = new LineSet();
@@ -175,7 +162,7 @@ public class GraphActivity extends BaseActivity {
         paint.setStrokeWidth(1);
         lineChartView.setGrid(ChartView.GridType.HORIZONTAL, paint);
         lineChartView.setBorderSpacing(Tools.fromDpToPx(10));
-        lineChartView.setAxisBorderValues(0, (int) (Math.round(maxRain)) + 1);
+        lineChartView.setAxisBorderValues(0, (Math.round(maxRain)) + 1);
         lineChartView.setStep(1);
         lineChartView.setXAxis(false);
         lineChartView.setYAxis(false);
@@ -184,13 +171,13 @@ public class GraphActivity extends BaseActivity {
         lineChartView.show();
     }
 
-    private void pressureGraph() {
-        LineChartView lineChartView = (LineChartView) findViewById(R.id.graph_pressure);
+    private void pressureGraph(SharedPreferences sp) {
+        LineChartView lineChartView = findViewById(R.id.graph_pressure);
 
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float pressure = UnitConvertor.convertPressure(Float.parseFloat(weatherList.get(i).getPressure()), sp);
+            float pressure = UnitConverter.convertPressure(Float.parseFloat(weatherList.get(i).getPressure()), sp);
 
             if (pressure < minPressure) {
                 minPressure = pressure;
@@ -226,8 +213,8 @@ public class GraphActivity extends BaseActivity {
         lineChartView.show();
     }
 
-    private void windSpeedGraph() {
-        LineChartView lineChartView = (LineChartView) findViewById(R.id.graph_windspeed);
+    private void windSpeedGraph(SharedPreferences sp) {
+        LineChartView lineChartView = findViewById(R.id.graph_windspeed);
         String graphLineColor = "#efd214";
 
         if (darkTheme) {
@@ -237,7 +224,7 @@ public class GraphActivity extends BaseActivity {
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float windSpeed = (float) UnitConvertor.convertWind(Float.parseFloat(weatherList.get(i).getWind()), sp);
+            float windSpeed = (float) UnitConverter.convertWind(Float.parseFloat(weatherList.get(i).getWind()), sp);
 
             if (windSpeed < minWindSpeed) {
                 minWindSpeed = windSpeed;
@@ -323,6 +310,7 @@ public class GraphActivity extends BaseActivity {
 
     public String getDateLabel(Weather weather, int i) {
         if ((i + 4) % 4 == 0) {
+            // TODO: User locale?
             SimpleDateFormat resultFormat = new SimpleDateFormat("E");
             resultFormat.setTimeZone(TimeZone.getDefault());
             String output = resultFormat.format(weather.getDate());
@@ -334,23 +322,6 @@ public class GraphActivity extends BaseActivity {
             }
         } else {
             return "";
-        }
-    }
-
-    private int getTheme(String themePref) {
-        switch (themePref) {
-            case "dark":
-                return R.style.AppTheme_NoActionBar_Dark;
-            case "black":
-                return R.style.AppTheme_NoActionBar_Black;
-            case "classic":
-                return R.style.AppTheme_NoActionBar_Classic;
-            case "classicdark":
-                return R.style.AppTheme_NoActionBar_Classic_Dark;
-            case "classicblack":
-                return R.style.AppTheme_NoActionBar_Classic_Black;
-            default:
-                return R.style.AppTheme_NoActionBar;
         }
     }
 }

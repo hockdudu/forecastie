@@ -36,11 +36,10 @@ public class TimeWidgetProvider extends AbstractWidgetProvider {
             remoteViews.setOnClickPendingIntent(R.id.widgetRoot, pendingIntent2);
 
             SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-            Weather widgetWeather = new Weather();
-            if(!sp.getString("lastToday", "").equals("")) {
+            Weather widgetWeather;
+            if (!sp.getString("lastToday", "").equals("")) {
                 widgetWeather = parseWidgetJson(sp.getString("lastToday", ""), context);
-            }
-            else {
+            } else {
                 try {
                     pendingIntent2.send();
                 } catch (PendingIntent.CanceledException e) {
@@ -55,7 +54,7 @@ public class TimeWidgetProvider extends AbstractWidgetProvider {
             if ("custom".equals(dateFormat)) {
                 dateFormat = sp.getString("dateFormatCustom", defaultDateFormat);
             }
-            dateFormat = dateFormat.substring(0, dateFormat.indexOf("-")-1);
+            dateFormat = dateFormat.substring(0, dateFormat.indexOf("-") - 1);
             String dateString;
             try {
                 SimpleDateFormat resultFormat = new SimpleDateFormat(dateFormat);

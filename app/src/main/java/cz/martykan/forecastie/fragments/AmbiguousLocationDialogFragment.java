@@ -27,16 +27,16 @@ import cz.martykan.forecastie.adapters.LocationsRecyclerAdapter;
 import cz.martykan.forecastie.database.AppDatabase;
 import cz.martykan.forecastie.database.CityRepository;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.UI;
 
 public class AmbiguousLocationDialogFragment extends DialogFragment implements LocationsRecyclerAdapter.ItemClickListener {
 
     private LocationsRecyclerAdapter recyclerAdapter;
-    private SharedPreferences sharedPreferences;
     private CityRepository cityRepository;
 
     @Nullable
     @Override
-    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_dialog_ambiguous_location, container, false);
     }
 
@@ -49,14 +49,15 @@ public class AmbiguousLocationDialogFragment extends DialogFragment implements L
         final RecyclerView recyclerView = view.findViewById(R.id.locationsRecyclerView);
         final LinearLayout linearLayout = view.findViewById(R.id.locationsLinearLayout);
 
+        // TODO: Make it translatable
         toolbar.setTitle("Locations");
 
         toolbar.setNavigationIcon(R.drawable.ic_close_black_24dp);
         toolbar.setNavigationOnClickListener(view1 -> getActivity().getSupportFragmentManager().popBackStack());
 
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
 
-        final int theme = getTheme(sharedPreferences.getString("theme", "fresh"));
+        final int theme = UI.getTheme(prefs.getString("theme", "fresh"));
         final boolean darkTheme = theme == R.style.AppTheme_NoActionBar_Dark ||
                 theme == R.style.AppTheme_NoActionBar_Classic_Dark;
         final boolean blackTheme = theme == R.style.AppTheme_NoActionBar_Black ||
@@ -93,10 +94,8 @@ public class AmbiguousLocationDialogFragment extends DialogFragment implements L
         cityRepository = new CityRepository(AppDatabase.getDatabase(getContext()).cityDao(), getContext());
     }
 
-    @SuppressLint("ApplySharedPref")
     @Override
     public void onItemClickListener(View view, int position) {
-        Handler handler = new Handler();
         Runnable runnable = () -> {
             final Weather weather = recyclerAdapter.getItem(position);
             final Intent intent = new Intent(getActivity(), MainActivity.class);
@@ -112,22 +111,4 @@ public class AmbiguousLocationDialogFragment extends DialogFragment implements L
 
         new Thread(runnable).start();
     }
-
-    private int getTheme(String themePref) {
-        switch (themePref) {
-            case "dark":
-                return R.style.AppTheme_NoActionBar_Dark;
-            case "black":
-                return R.style.AppTheme_NoActionBar_Black;
-            case "classic":
-                return R.style.AppTheme_NoActionBar_Classic;
-            case "classicdark":
-                return R.style.AppTheme_NoActionBar_Classic_Dark;
-            case "classicblack":
-                return R.style.AppTheme_NoActionBar_Classic_Black;
-            default:
-                return R.style.AppTheme_NoActionBar;
-        }
-    }
-
 }

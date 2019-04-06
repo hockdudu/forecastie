@@ -4,20 +4,21 @@ package cz.martykan.forecastie.models;
 import android.arch.persistence.room.Entity;
 import android.arch.persistence.room.ForeignKey;
 import android.arch.persistence.room.PrimaryKey;
+import android.support.annotation.Nullable;
 
 import java.io.Serializable;
 
-@Entity
-@ForeignKey(entity = Weather.class, childColumns = "currentWeatherId", parentColumns = "uid")
+@Entity(foreignKeys = {@ForeignKey(entity = Weather.class, childColumns = "currentWeatherId", parentColumns = "uid", onUpdate = ForeignKey.CASCADE, onDelete = ForeignKey.RESTRICT)})
 public class City implements Serializable {
 
-    @PrimaryKey
+    @PrimaryKey(autoGenerate = true)
     private int id;
     private String city;
     private String country;
     private double lat;
     private double lon;
-    private long currentWeatherId;
+    @Nullable
+    private Long currentWeatherId;
 
     public int getId() {
         return id;
@@ -59,11 +60,12 @@ public class City implements Serializable {
         this.lon = lon;
     }
 
-    public long getCurrentWeatherId() {
+    @Nullable
+    public Long getCurrentWeatherId() {
         return currentWeatherId;
     }
 
-    public void setCurrentWeatherId(long currentWeatherId) {
+    public void setCurrentWeatherId(@Nullable Long currentWeatherId) {
         this.currentWeatherId = currentWeatherId;
     }
 

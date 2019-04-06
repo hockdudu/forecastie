@@ -8,7 +8,7 @@ import android.content.Context;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
 
-@Database(entities = {City.class, Weather.class}, version = 2)
+@Database(entities = {City.class, Weather.class}, version = 3)
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract CityDao cityDao();

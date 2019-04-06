@@ -17,8 +17,7 @@ import java.util.Locale;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.database.AppTypeConverter;
 
-@Entity
-@ForeignKey(entity = City.class, childColumns = "cityId", parentColumns = "id")
+@Entity(foreignKeys = {@ForeignKey(entity = City.class, childColumns = "cityId", parentColumns = "id", onUpdate = ForeignKey.CASCADE, onDelete = ForeignKey.CASCADE)})
 public class Weather implements Serializable {
 
     @PrimaryKey(autoGenerate = true)
@@ -33,6 +32,7 @@ public class Weather implements Serializable {
     private String wind;
     private Double windDirectionDegree;
     private String pressure;
+    // TODO: Make it a double
     private String humidity;
     private String rain;
     private String id;

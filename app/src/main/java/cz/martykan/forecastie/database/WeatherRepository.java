@@ -10,6 +10,7 @@ import org.json.JSONObject;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -39,7 +40,10 @@ public class WeatherRepository extends AbstractRepository {
         weatherLiveResponse.setLiveData(weatherLiveData);
 
         Runnable runnable = () -> {
-            Weather currentWeather = weatherDao.findByUid(city.getCurrentWeatherId());
+            Weather currentWeather = null;
+            if (city.getCurrentWeatherId() != null) {
+                currentWeather = weatherDao.findByUid(city.getCurrentWeatherId());
+            }
 
             if (forceDownload || currentWeather == null || isWeatherTooOld(currentWeather)) {
                 Weather downloadedWeather = null;
@@ -49,36 +53,28 @@ public class WeatherRepository extends AbstractRepository {
                 if (weatherLiveResponse.getStatus() == Response.Status.SUCCESS) {
                     Response uvResponse = downloadJson(provideUVIndexUrl(city));
 
-                    double currentUVIndex = 0;
-
-                    try {
-                        JSONObject jsonObject = new JSONObject(uvResponse.getDataString());
-                        currentUVIndex = JsonParser.convertJsonToUVIndex(jsonObject);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                        // We don't need to set the uvResponse's status, as only
-                        // weatherLiveResponse is returned
-                        weatherLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);
-                    }
-
                     try {
                         JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
                         downloadedWeather = JsonParser.convertJsonToWeather(jsonObject, city, getFormatting());
+
+                        JSONObject uvJsonObject = new JSONObject(uvResponse.getDataString());
+                        double currentUVIndex = JsonParser.convertJsonToUVIndex(uvJsonObject);
+
+                        downloadedWeather.setUvIndex(currentUVIndex);
                     } catch (JSONException e) {
                         e.printStackTrace();
                         weatherLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);
                     }
 
                     if (downloadedWeather != null) {
+                        long id = weatherDao.insert(downloadedWeather);
+                        downloadedWeather.setUid(id);
+                        city.setCurrentWeatherId(id);
+                        cityDao.persist(city);
+
                         if (currentWeather != null) {
                             weatherDao.delete(currentWeather);
                         }
-
-                        long id = weatherDao.insert(downloadedWeather);
-                        downloadedWeather.setUid(id);
-                        downloadedWeather.setUvIndex(currentUVIndex);
-                        city.setCurrentWeatherId(id);
-                        cityDao.persist(city);
 
                         currentWeather = downloadedWeather;
                     }
@@ -111,7 +107,10 @@ public class WeatherRepository extends AbstractRepository {
         weatherLiveResponse.setLiveData(weatherLiveData);
 
         Runnable runnable = () -> {
-            List<Weather> weathers = weatherDao.findForecast(city.getId(), city.getCurrentWeatherId());
+            List<Weather> weathers = Collections.emptyList();
+            if (city.getCurrentWeatherId() != null) {
+                weathers = weatherDao.findForecast(city.getId(), city.getCurrentWeatherId());
+            }
 
             boolean isWeatherTooOld = false;
 

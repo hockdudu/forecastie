@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
+import android.support.annotation.NonNull;
 import android.support.v7.widget.CardView;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
@@ -37,13 +38,13 @@ public class LocationsRecyclerAdapter extends RecyclerView.Adapter<LocationsRecy
     }
 
     @Override
-    public LocationsViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public LocationsViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         return new LocationsViewHolder(inflater.inflate(R.layout.list_location_row, parent, false));
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
-    public void onBindViewHolder(LocationsViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull LocationsViewHolder holder, int position) {
         Typeface weatherFont = Typeface.createFromAsset(context.getAssets(), "fonts/weather.ttf");
         Weather weather = weatherArrayList.get(position);
 

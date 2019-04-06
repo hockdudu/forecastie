@@ -49,7 +49,6 @@ import android.widget.TextView;
 
 import java.io.Serializable;
 import java.text.DateFormat;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -78,7 +77,7 @@ import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.LiveResponse;
 import cz.martykan.forecastie.utils.Response;
 import cz.martykan.forecastie.utils.UI;
-import cz.martykan.forecastie.utils.UnitConvertor;
+import cz.martykan.forecastie.utils.UnitConverter;
 
 public class MainActivity extends BaseActivity implements LocationListener {
     protected static final int MY_PERMISSIONS_ACCESS_FINE_LOCATION = 1;
@@ -139,8 +138,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         widgetTransparent = prefs.getBoolean("transparentWidget", false);
         setTheme(theme = UI.getTheme(prefs.getString("theme", "fresh")));
-        boolean darkTheme = super.darkTheme;
-        boolean blackTheme = super.blackTheme;
 
         // Initiate activity
         super.onCreate(savedInstanceState);
@@ -156,7 +153,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        @NonNull
         ActionBar actionBar = Objects.requireNonNull(getSupportActionBar());
         actionBar.setDisplayHomeAsUpEnabled(true);
         actionBar.setHomeAsUpIndicator(R.drawable.ic_menu);
@@ -342,7 +338,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
                     if (weather != null) {
                         weatherIcon.setText(weather.getIcon());
-                        temperature.setText(getString(R.string.format_temperature, UnitConvertor.convertTemperature(Float.parseFloat(weather.getTemperature()), sp), sp.getString("unit", "°C")));
+                        temperature.setText(getString(R.string.format_temperature, UnitConverter.convertTemperature(Float.parseFloat(weather.getTemperature()), sp), sp.getString("unit", "°C")));
                     }
                 });
 
@@ -515,14 +511,14 @@ public class MainActivity extends BaseActivity implements LocationListener {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
 
         // Temperature
-        float temperature = UnitConvertor.convertTemperature(Float.parseFloat(todayWeather.getTemperature()), sp);
+        float temperature = UnitConverter.convertTemperature(Float.parseFloat(todayWeather.getTemperature()), sp);
         if (sp.getBoolean("temperatureInteger", false)) {
             temperature = Math.round(temperature);
         }
 
         // Rain
         double rain = Double.parseDouble(todayWeather.getRain());
-        String rainString = UnitConvertor.getRainString(rain, sp);
+        String rainString = UnitConverter.getRainString(rain, sp);
 
         // Wind
         double wind;
@@ -532,15 +528,15 @@ public class MainActivity extends BaseActivity implements LocationListener {
             e.printStackTrace();
             wind = 0;
         }
-        wind = UnitConvertor.convertWind(wind, sp);
+        wind = UnitConverter.convertWind(wind, sp);
 
         // Pressure
-        double pressure = UnitConvertor.convertPressure((float) Double.parseDouble(todayWeather.getPressure()), sp);
+        double pressure = UnitConverter.convertPressure((float) Double.parseDouble(todayWeather.getPressure()), sp);
 
         todayTemperature.setText(getString(R.string.format_temperature, temperature, sp.getString("unit", "°C")));
         todayDescription.setText(rainString.length() > 0 ? getString(R.string.format_description_with_rain, Formatting.capitalize(todayWeather.getDescription()), rainString) : Formatting.capitalize(todayWeather.getDescription()));
         if (sp.getString("speedUnit", "m/s").equals("bft")) {
-            todayWind.setText(getString(R.string.format_wind_beaufort, UnitConvertor.getBeaufortName((int) wind),
+            todayWind.setText(getString(R.string.format_wind_beaufort, UnitConverter.getBeaufortName((int) wind),
                     todayWeather.isWindDirectionAvailable() ? getWindDirectionString(sp, this, todayWeather) : "")
             );
         } else {
@@ -555,7 +551,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         todaySunrise.setText(getString(R.string.format_sunrise, todayWeather.getSunrise()));
         todaySunset.setText(getString(R.string.format_sunset, todayWeather.getSunset()));
         todayIcon.setText(todayWeather.getIcon());
-        todayUvIndex.setText(getString(R.string.format_uv_index, UnitConvertor.convertUvIndexToRiskLevel(todayWeather.getUvIndex())));
+        todayUvIndex.setText(getString(R.string.format_uv_index, UnitConverter.convertUvIndexToRiskLevel(todayWeather.getUvIndex())));
         lastUpdate.setText(getString(R.string.last_update, formatTimeWithDayIfNotToday(this, todayWeather.getLastUpdated())));
 
         todayIcon.setOnClickListener(view -> {
@@ -736,6 +732,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         return "";
     }
 
+    // TODO:
     void getCityByLocation() {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
@@ -807,7 +804,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         } catch (SecurityException e) {
             Log.e("LocationManager", "Error while trying to stop listening for location updates. This is probably a permissions issue", e);
         }
-        Log.i("LOCATION (" + location.getProvider().toUpperCase() + ")", location.getLatitude() + ", " + location.getLongitude());
+        Log.i(String.format("LOCATION (%s)", location.getProvider().toUpperCase()), String.format("%s, %s", location.getLatitude(), location.getLongitude()));
 
         LiveResponse<City> cityLiveData = cityRepository.findCity(location);
 

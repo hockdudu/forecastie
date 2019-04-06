@@ -17,7 +17,7 @@ import java.text.DecimalFormat;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.activities.SplashActivity;
-import cz.martykan.forecastie.utils.UnitConvertor;
+import cz.martykan.forecastie.utils.UnitConverter;
 
 public class DashClockWeatherExtension extends DashClockExtension {
     private static final Uri URI_BASE = Uri.parse("content://cz.martykan.forecastie.authority");
@@ -40,7 +40,7 @@ public class DashClockWeatherExtension extends DashClockExtension {
             JSONObject reader = new JSONObject(result);
 
             // Temperature
-            float temperature = UnitConvertor.convertTemperature(Float.parseFloat(reader.optJSONObject("main").getString("temp").toString()), sp);
+            float temperature = UnitConverter.convertTemperature(Float.parseFloat(reader.optJSONObject("main").getString("temp").toString()), sp);
             if (sp.getBoolean("temperatureInteger", false)) {
                 temperature = Math.round(temperature);
             }
@@ -53,10 +53,10 @@ public class DashClockWeatherExtension extends DashClockExtension {
                 e.printStackTrace();
                 wind = 0;
             }
-            wind = UnitConvertor.convertWind(wind, sp);
+            wind = UnitConverter.convertWind(wind, sp);
 
             // Pressure
-            double pressure = UnitConvertor.convertPressure((float) Double.parseDouble(reader.optJSONObject("main").getString("pressure").toString()), sp);
+            double pressure = UnitConverter.convertPressure((float) Double.parseDouble(reader.optJSONObject("main").getString("pressure").toString()), sp);
 
             MainActivity.initMappings();
             publishUpdate(new ExtensionData()

@@ -10,7 +10,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -21,7 +20,7 @@ import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.models.WeatherViewHolder;
 import cz.martykan.forecastie.utils.Formatting;
-import cz.martykan.forecastie.utils.UnitConvertor;
+import cz.martykan.forecastie.utils.UnitConverter;
 
 public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHolder> {
     private List<Weather> itemList;
@@ -47,14 +46,14 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
 
         // Temperature
-        float temperature = UnitConvertor.convertTemperature(Float.parseFloat(weatherItem.getTemperature()), sp);
+        float temperature = UnitConverter.convertTemperature(Float.parseFloat(weatherItem.getTemperature()), sp);
         if (sp.getBoolean("temperatureInteger", false)) {
             temperature = Math.round(temperature);
         }
 
         // Rain
         double rain = Double.parseDouble(weatherItem.getRain());
-        String rainString = UnitConvertor.getRainString(rain, sp);
+        String rainString = UnitConverter.getRainString(rain, sp);
 
         // Wind
         double wind;
@@ -64,10 +63,10 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
             e.printStackTrace();
             wind = 0;
         }
-        wind = UnitConvertor.convertWind(wind, sp);
+        wind = UnitConverter.convertWind(wind, sp);
 
         // Pressure
-        double pressure = UnitConvertor.convertPressure((float) Double.parseDouble(weatherItem.getPressure()), sp);
+        double pressure = UnitConverter.convertPressure((float) Double.parseDouble(weatherItem.getPressure()), sp);
 
         TimeZone tz = TimeZone.getDefault();
         String defaultDateFormat = context.getResources().getStringArray(R.array.dateFormatsValues)[0];
@@ -116,9 +115,9 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
         customViewHolder.itemIcon.setTypeface(weatherFont);
         customViewHolder.itemIcon.setText(weatherItem.getIcon());
         if (sp.getString("speedUnit", "m/s").equals("bft")) {
-            customViewHolder.itemyWind.setText(context.getString(R.string.format_wind_beaufort, UnitConvertor.getBeaufortName((int) wind), MainActivity.getWindDirectionString(sp, context, weatherItem)));
+            customViewHolder.itemWind.setText(context.getString(R.string.format_wind_beaufort, UnitConverter.getBeaufortName((int) wind), MainActivity.getWindDirectionString(sp, context, weatherItem)));
         } else {
-            customViewHolder.itemyWind.setText(context.getString(R.string.format_wind, wind, MainActivity.localize(sp, context, "speedUnit", "m/s"), MainActivity.getWindDirectionString(sp, context, weatherItem)));
+            customViewHolder.itemWind.setText(context.getString(R.string.format_wind, wind, MainActivity.localize(sp, context, "speedUnit", "m/s"), MainActivity.getWindDirectionString(sp, context, weatherItem)));
         }
         customViewHolder.itemPressure.setText(context.getString(R.string.format_pressure, pressure, MainActivity.localize(sp, context, "pressureUnit", "hPa")));
         customViewHolder.itemHumidity.setText(context.getString(R.string.format_humidity, Integer.parseInt(weatherItem.getHumidity())));

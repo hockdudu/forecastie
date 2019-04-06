@@ -31,7 +31,7 @@ import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
-import cz.martykan.forecastie.utils.UnitConvertor;
+import cz.martykan.forecastie.utils.UnitConverter;
 
 public abstract class AbstractWidgetProvider extends AppWidgetProvider {
     protected static final long DURATION_MINUTE = TimeUnit.SECONDS.toMillis(30);
@@ -116,7 +116,7 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
             SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
 
             // Temperature
-            float temperature = UnitConvertor.convertTemperature(Float.parseFloat(reader.optJSONObject("main").getString("temp").toString()), sp);
+            float temperature = UnitConverter.convertTemperature(Float.parseFloat(reader.optJSONObject("main").getString("temp").toString()), sp);
             if (sp.getBoolean("temperatureInteger", false)) {
                 temperature = Math.round(temperature);
             }
@@ -129,10 +129,10 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
                 e.printStackTrace();
                 wind = 0;
             }
-            wind = UnitConvertor.convertWind(wind, sp);
+            wind = UnitConverter.convertWind(wind, sp);
 
             // Pressure
-            double pressure = UnitConvertor.convertPressure((float) Double.parseDouble(reader.optJSONObject("main").getString("pressure").toString()), sp);
+            double pressure = UnitConverter.convertPressure((float) Double.parseDouble(reader.optJSONObject("main").getString("pressure").toString()), sp);
 
             String description = reader.optJSONArray("weather").getJSONObject(0).getString("description");
             description = description.substring(0,1).toUpperCase() + description.substring(1);

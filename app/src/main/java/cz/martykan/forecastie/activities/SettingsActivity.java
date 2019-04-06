@@ -15,6 +15,7 @@ import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.Toolbar;
@@ -33,7 +34,7 @@ public class SettingsActivity extends PreferenceActivity
         implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     // Thursday 2016-01-14 16:00:00
-    private Date SAMPLE_DATE = new Date(1452805200000l);
+    private Date SAMPLE_DATE = new Date(1452805200000L);
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -112,7 +113,7 @@ public class SettingsActivity extends PreferenceActivity
                 startActivity(getIntent());
                 break;
             case "updateLocationAutomatically":
-                if (sharedPreferences.getBoolean(key, false) == true) {
+                if (sharedPreferences.getBoolean(key, false)) {
                     requestReadLocationPermission();
                 }
                 break;
@@ -140,7 +141,7 @@ public class SettingsActivity extends PreferenceActivity
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == MainActivity.MY_PERMISSIONS_ACCESS_FINE_LOCATION) {
             boolean permissionGranted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
             CheckBoxPreference checkBox = (CheckBoxPreference) findPreference("updateLocationAutomatically");

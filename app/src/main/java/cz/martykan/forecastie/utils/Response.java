@@ -24,7 +24,7 @@ public class Response {
     public enum Status {
         SUCCESS,
         BAD_RESPONSE,
-        CONNECTION_ERROR,
+        CONNECTION_ERROR, // TODO: This doesn't look to be used anywhere
         TOO_MANY_REQUESTS,
         IO_EXCEPTION,
         JSON_EXCEPTION,
