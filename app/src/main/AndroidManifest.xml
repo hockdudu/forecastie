@@ -96,11 +96,6 @@
             android:label="@string/action_graphs"
             android:parentActivityName=".activities.MainActivity"
             android:theme="@style/AppTheme.NoActionBar" />
-
-        <provider
-            android:name=".utils.StubContentProvider"
-            android:authorities="cz.martykan.forecastie.authority"
-            android:exported="true" />
     </application>
 
 </manifest>
