@@ -2,14 +2,9 @@ package cz.martykan.forecastie.activities;
 
 import android.annotation.SuppressLint;
 import android.arch.lifecycle.ViewModelProviders;
-import android.content.SharedPreferences;
-import android.content.pm.ApplicationInfo;
-import android.os.Build;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.annotation.IdRes;
 import android.util.Log;
-import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -28,14 +23,13 @@ public class MapActivity extends BaseActivity {
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
         MapViewModel mapViewModel = ViewModelProviders.of(this).get(MapViewModel.class);
 
         if (savedInstanceState == null) {
-            mapViewModel.sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+            mapViewModel.sharedPreferences = prefs;
             mapViewModel.mapLat = prefs.getFloat("latitude", 0);
             mapViewModel.mapLon = prefs.getFloat("longitude", 0);
             mapViewModel.apiKey = mapViewModel.sharedPreferences.getString("apiKey", getResources().getString(R.string.apiKey));

@@ -1,7 +1,6 @@
 package cz.martykan.forecastie.activities;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
 import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
@@ -27,7 +26,6 @@ import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.Snackbar;
 import android.support.design.widget.TabLayout;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.view.ViewPager;
@@ -36,12 +34,10 @@ import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.Toolbar;
-import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -52,10 +48,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import cz.martykan.forecastie.AlarmReceiver;
@@ -129,13 +122,11 @@ public class MainActivity extends BaseActivity implements LocationListener {
         // Initialize the associated SharedPreferences file with default values
         PreferenceManager.setDefaultValues(this, R.xml.prefs, false);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        super.onCreate(savedInstanceState);
 
         widgetTransparent = prefs.getBoolean("transparentWidget", false);
         setTheme(theme = UI.getTheme(prefs.getString("theme", "fresh")));
 
-        // Initiate activity
-        super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_scrolling);
         appView = findViewById(R.id.viewApp);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
@@ -184,9 +175,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         tabLayout = findViewById(R.id.tabs);
 
         destroyed = false;
-
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        recentCityId = preferences.getInt("cityId", Constants.DEFAULT_CITY_ID);
+        recentCityId = prefs.getInt("cityId", Constants.DEFAULT_CITY_ID);
 
         // Preload data from cache
         refreshWeather();
@@ -249,8 +238,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
     @Override
     public void onResume() {
         super.onResume();
-        if (UI.getTheme(PreferenceManager.getDefaultSharedPreferences(this).getString("theme", "fresh")) != theme ||
-                PreferenceManager.getDefaultSharedPreferences(this).getBoolean("transparentWidget", false) != widgetTransparent) {
+        if (UI.getTheme(prefs.getString("theme", "fresh")) != theme || prefs.getBoolean("transparentWidget", false) != widgetTransparent) {
             // Restart activity to apply theme
             overridePendingTransition(0, 0);
             finish();
@@ -402,14 +390,12 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 // TODO: Use bulk download, https://openweathermap.org/current#severalid
                 LiveResponse<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city, false);
 
-                SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
-
                 weatherLiveData.getLiveData().observe(this, weather -> {
                     handleConnectionStatus(weatherLiveData.getStatus());
 
                     if (weather != null) {
                         weatherIcon.setText(weather.getIcon());
-                        temperature.setText(getString(R.string.format_temperature, UnitConverter.convertTemperature(Float.parseFloat(weather.getTemperature()), sp), sp.getString("unit", "°C")));
+                        temperature.setText(getString(R.string.format_temperature, UnitConverter.convertTemperature(Float.parseFloat(weather.getTemperature()), prefs), prefs.getString("unit", "°C")));
                     }
                 });
 
@@ -470,8 +456,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private void selectLocation(City city) {
         recentCityId = city.getId();
 
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        SharedPreferences.Editor editor = preferences.edit();
+        SharedPreferences.Editor editor = prefs.edit();
         editor.putInt("cityId", city.getId());
         editor.apply();
     }
@@ -510,17 +495,15 @@ public class MainActivity extends BaseActivity implements LocationListener {
         //noinspection ConstantConditions
         getSupportActionBar().setTitle(todayWeather.getCity().toString());
 
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-
         // Temperature
-        float temperature = UnitConverter.convertTemperature(Float.parseFloat(todayWeather.getTemperature()), sp);
-        if (sp.getBoolean("temperatureInteger", false)) {
+        float temperature = UnitConverter.convertTemperature(Float.parseFloat(todayWeather.getTemperature()), prefs);
+        if (prefs.getBoolean("temperatureInteger", false)) {
             temperature = Math.round(temperature);
         }
 
         // Rain
         double rain = Double.parseDouble(todayWeather.getRain());
-        String rainString = UnitConverter.getRainString(rain, sp);
+        String rainString = UnitConverter.getRainString(rain, prefs);
 
         // Wind
         double wind;
@@ -530,24 +513,24 @@ public class MainActivity extends BaseActivity implements LocationListener {
             e.printStackTrace();
             wind = 0;
         }
-        wind = UnitConverter.convertWind(wind, sp);
+        wind = UnitConverter.convertWind(wind, prefs);
 
         // Pressure
-        double pressure = UnitConverter.convertPressure((float) Double.parseDouble(todayWeather.getPressure()), sp);
+        double pressure = UnitConverter.convertPressure((float) Double.parseDouble(todayWeather.getPressure()), prefs);
 
-        todayTemperature.setText(getString(R.string.format_temperature, temperature, sp.getString("unit", "°C")));
+        todayTemperature.setText(getString(R.string.format_temperature, temperature, prefs.getString("unit", "°C")));
         todayDescription.setText(rainString.length() > 0 ? getString(R.string.format_description_with_rain, Formatting.capitalize(todayWeather.getDescription()), rainString) : Formatting.capitalize(todayWeather.getDescription()));
-        if (sp.getString("speedUnit", "m/s").equals("bft")) {
+        if (prefs.getString("speedUnit", "m/s").equals("bft")) {
             todayWind.setText(getString(R.string.format_wind_beaufort, UnitConverter.getBeaufortName((int) wind),
-                    todayWeather.isWindDirectionAvailable() ? Formatting.getWindDirectionString(sp, this, todayWeather) : "")
+                    todayWeather.isWindDirectionAvailable() ? Formatting.getWindDirectionString(prefs, this, todayWeather) : "")
             );
         } else {
             todayWind.setText(getString(R.string.format_wind, wind,
-                    Formatting.localize(sp, this, "speedUnit", "m/s"),
-                    todayWeather.isWindDirectionAvailable() ? Formatting.getWindDirectionString(sp, this, todayWeather) : "")
+                    Formatting.localize(prefs, this, "speedUnit", "m/s"),
+                    todayWeather.isWindDirectionAvailable() ? Formatting.getWindDirectionString(prefs, this, todayWeather) : "")
             );
         }
-        todayPressure.setText(getString(R.string.format_pressure, pressure, Formatting.localize(sp, this, "pressureUnit", "hPa")));
+        todayPressure.setText(getString(R.string.format_pressure, pressure, Formatting.localize(prefs, this, "pressureUnit", "hPa")));
         // TODO: Convert humidity to int
         todayHumidity.setText(getString(R.string.format_humidity, Integer.parseInt(todayWeather.getHumidity())));
         todaySunrise.setText(getString(R.string.format_sunrise, todayWeather.getSunrise()));
@@ -611,7 +594,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         if (todayWeather != null) {
             lastUpdate = todayWeather.getLastUpdated();
         }
-        boolean cityChanged = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("cityChanged", false);
+        boolean cityChanged = prefs.getBoolean("cityChanged", false);
         // Update if never checked or las"t update is longer ago than specified threshold
         return cityChanged || lastUpdate < 0 || (Calendar.getInstance().getTimeInMillis() - lastUpdate) > NO_UPDATE_REQUIRED_THRESHOLD;
     }

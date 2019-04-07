@@ -1,11 +1,9 @@
 package cz.martykan.forecastie.activities;
 
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.widget.TextView;
@@ -47,7 +45,6 @@ public class GraphActivity extends BaseActivity {
     @SuppressWarnings("unchecked")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_graph);
 
@@ -74,22 +71,22 @@ public class GraphActivity extends BaseActivity {
         if (getIntent().hasExtra(EXTRA_CITY)) {
             weatherList = (List<Weather>) getIntent().getSerializableExtra(EXTRA_CITY);
 
-            temperatureGraph(prefs);
+            temperatureGraph();
             rainGraph();
-            pressureGraph(prefs);
-            windSpeedGraph(prefs);
+            pressureGraph();
+            windSpeedGraph();
         } else {
             Log.e("GraphActivity", "No extra was given");
         }
     }
 
-    private void temperatureGraph(SharedPreferences sp) {
+    private void temperatureGraph() {
         LineChartView lineChartView = findViewById(R.id.graph_temperature);
 
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float temperature = UnitConverter.convertTemperature(Float.parseFloat(weatherList.get(i).getTemperature()), sp);
+            float temperature = UnitConverter.convertTemperature(Float.parseFloat(weatherList.get(i).getTemperature()), prefs);
 
             if (temperature < minTemp) {
                 minTemp = temperature;
@@ -155,13 +152,13 @@ public class GraphActivity extends BaseActivity {
         lineChartView.show();
     }
 
-    private void pressureGraph(SharedPreferences sp) {
+    private void pressureGraph() {
         LineChartView lineChartView = findViewById(R.id.graph_pressure);
 
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float pressure = UnitConverter.convertPressure(Float.parseFloat(weatherList.get(i).getPressure()), sp);
+            float pressure = UnitConverter.convertPressure(Float.parseFloat(weatherList.get(i).getPressure()), prefs);
 
             if (pressure < minPressure) {
                 minPressure = pressure;
@@ -192,7 +189,7 @@ public class GraphActivity extends BaseActivity {
         lineChartView.show();
     }
 
-    private void windSpeedGraph(SharedPreferences sp) {
+    private void windSpeedGraph() {
         LineChartView lineChartView = findViewById(R.id.graph_windspeed);
         String graphLineColor = "#efd214";
 
@@ -203,7 +200,7 @@ public class GraphActivity extends BaseActivity {
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float windSpeed = (float) UnitConverter.convertWind(Float.parseFloat(weatherList.get(i).getWind()), sp);
+            float windSpeed = (float) UnitConverter.convertWind(Float.parseFloat(weatherList.get(i).getWind()), prefs);
 
             if (windSpeed < minWindSpeed) {
                 minWindSpeed = windSpeed;
