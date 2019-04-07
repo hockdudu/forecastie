@@ -116,11 +116,11 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
         customViewHolder.itemIcon.setTypeface(weatherFont);
         customViewHolder.itemIcon.setText(weatherItem.getIcon());
         if (sp.getString("speedUnit", "m/s").equals("bft")) {
-            customViewHolder.itemWind.setText(context.getString(R.string.format_wind_beaufort, UnitConverter.getBeaufortName((int) wind), MainActivity.getWindDirectionString(sp, context, weatherItem)));
+            customViewHolder.itemWind.setText(context.getString(R.string.format_wind_beaufort, UnitConverter.getBeaufortName((int) wind), Formatting.getWindDirectionString(sp, context, weatherItem)));
         } else {
-            customViewHolder.itemWind.setText(context.getString(R.string.format_wind, wind, MainActivity.localize(sp, context, "speedUnit", "m/s"), MainActivity.getWindDirectionString(sp, context, weatherItem)));
+            customViewHolder.itemWind.setText(context.getString(R.string.format_wind, wind, Formatting.localize(sp, context, "speedUnit", "m/s"), Formatting.getWindDirectionString(sp, context, weatherItem)));
         }
-        customViewHolder.itemPressure.setText(context.getString(R.string.format_pressure, pressure, MainActivity.localize(sp, context, "pressureUnit", "hPa")));
+        customViewHolder.itemPressure.setText(context.getString(R.string.format_pressure, pressure, Formatting.localize(sp, context, "pressureUnit", "hPa")));
         customViewHolder.itemHumidity.setText(context.getString(R.string.format_humidity, Integer.parseInt(weatherItem.getHumidity())));
     }
 

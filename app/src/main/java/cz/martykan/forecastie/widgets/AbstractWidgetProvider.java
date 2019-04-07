@@ -31,6 +31,7 @@ import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.UnitConverter;
 
 public abstract class AbstractWidgetProvider extends AppWidgetProvider {
@@ -73,45 +74,9 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
         return myBitmap;
     }
 
-    private String setWeatherIcon(int actualId, int hourOfDay, Context context) {
-        int id = actualId / 100;
-        String icon = "";
-        if (actualId == 800) {
-            if (hourOfDay >= 7 && hourOfDay < 20) {
-                icon = context.getString(R.string.weather_sunny);
-            } else {
-                icon = context.getString(R.string.weather_clear_night);
-            }
-        } else {
-            switch (id) {
-                case 2:
-                    icon = context.getString(R.string.weather_thunder);
-                    break;
-                case 3:
-                    icon = context.getString(R.string.weather_drizzle);
-                    break;
-                case 7:
-                    icon = context.getString(R.string.weather_foggy);
-                    break;
-                case 8:
-                    icon = context.getString(R.string.weather_cloudy);
-                    break;
-                case 6:
-                    icon = context.getString(R.string.weather_snowy);
-                    break;
-                case 5:
-                    icon = context.getString(R.string.weather_rainy);
-                    break;
-            }
-        }
-        return icon;
-    }
-
     // TODO: Use common parser
     protected Weather parseWidgetJson(String result, Context context) {
         try {
-            MainActivity.initMappings();
-
             JSONObject reader = new JSONObject(result);
             SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
 
@@ -147,12 +112,12 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
             widgetWeather.setTemperature(Math.round(temperature) + localize(sp, context, "unit", "C"));
             widgetWeather.setDescription(description);
             widgetWeather.setWind(context.getString(R.string.wind) + ": " + new DecimalFormat("0.0").format(wind) + " " + localize(sp, context, "speedUnit", "m/s")
-                    + (widgetWeather.isWindDirectionAvailable() ? " " + MainActivity.getWindDirectionString(sp, context, widgetWeather) : ""));
+                    + (widgetWeather.isWindDirectionAvailable() ? " " + Formatting.getWindDirectionString(sp, context, widgetWeather) : ""));
             widgetWeather.setPressure(context.getString(R.string.pressure) + ": " + new DecimalFormat("0.0").format(pressure) + " " + localize(sp, context, "pressureUnit", "hPa"));
             widgetWeather.setHumidity(reader.optJSONObject("main").getString("humidity"));
             widgetWeather.setSunrise(reader.optJSONObject("sys").getString("sunrise"));
             widgetWeather.setSunset(reader.optJSONObject("sys").getString("sunset"));
-            widgetWeather.setIcon(setWeatherIcon(Integer.parseInt(reader.optJSONArray("weather").getJSONObject(0).getString("id")), Calendar.getInstance().get(Calendar.HOUR_OF_DAY), context));
+            widgetWeather.setIcon(Formatting.setWeatherIcon(Integer.parseInt(reader.optJSONArray("weather").getJSONObject(0).getString("id")), Calendar.getInstance().get(Calendar.HOUR_OF_DAY), context));
             widgetWeather.setLastUpdated(sp.getLong("lastUpdate", -1));
 
             return widgetWeather;
@@ -165,7 +130,7 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
 
     protected String localize(SharedPreferences sp, Context context, String preferenceKey,
                               String defaultValueKey) {
-        return MainActivity.localize(sp, context, preferenceKey, defaultValueKey);
+        return Formatting.localize(sp, context, preferenceKey, defaultValueKey);
     }
 
     public static void updateWidgets(Context context) {

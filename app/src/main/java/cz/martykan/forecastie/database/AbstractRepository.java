@@ -22,7 +22,6 @@ import cz.martykan.forecastie.utils.Response;
 
 public abstract class AbstractRepository {
     protected Context context;
-    private Formatting formatting;
 
     AbstractRepository(Context context) {
         this.context = context;
@@ -110,12 +109,5 @@ public abstract class AbstractRepository {
             language = "cz";
         }
         return language;
-    }
-
-    protected Formatting getFormatting() {
-        if (formatting == null) {
-            formatting = new Formatting(context);
-        }
-        return formatting;
     }
 }

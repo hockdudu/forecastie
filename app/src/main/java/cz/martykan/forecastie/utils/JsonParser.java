@@ -1,5 +1,6 @@
 package cz.martykan.forecastie.utils;
 
+import android.content.Context;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -48,7 +49,7 @@ public class JsonParser {
     }
 
     @NonNull
-    public static Weather convertJsonToWeather(JSONObject weatherObject, City city, Formatting formatting) {
+    public static Weather convertJsonToWeather(JSONObject weatherObject, City city, Context context) {
         Weather weather = new Weather();
 
         try {
@@ -90,7 +91,7 @@ public class JsonParser {
 
             Calendar cal = Calendar.getInstance();
             cal.setTime(weather.getDate());
-            weather.setIcon(formatting.setWeatherIcon(Integer.parseInt(weatherId), cal.get(Calendar.HOUR_OF_DAY)));
+            weather.setIcon(Formatting.setWeatherIcon(Integer.parseInt(weatherId), cal.get(Calendar.HOUR_OF_DAY), context));
 
             // Only available on weather, but not on forecast
             JSONObject sysObj = weatherObject.optJSONObject("sys");
@@ -120,7 +121,7 @@ public class JsonParser {
         return rain;
     }
 
-    public static List<Weather> convertJsonToForecast(JSONObject jsonObject, City city, Formatting formatting) {
+    public static List<Weather> convertJsonToForecast(JSONObject jsonObject, City city, Context context) {
         List<Weather> weatherList = new ArrayList<>();
 
         try {
@@ -128,7 +129,7 @@ public class JsonParser {
 
             for (int i = 0; i < weathers.length(); i++) {
                 JSONObject weathersJSONObject = weathers.getJSONObject(i);
-                Weather weather = convertJsonToWeather(weathersJSONObject, city, formatting);
+                Weather weather = convertJsonToWeather(weathersJSONObject, city, context);
                 weatherList.add(weather);
             }
 

@@ -14,6 +14,7 @@ import cz.martykan.forecastie.AlarmReceiver;
 import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.Formatting;
 
 public class ExtensiveWidgetProvider extends AbstractWidgetProvider {
 
@@ -58,7 +59,7 @@ public class ExtensiveWidgetProvider extends AbstractWidgetProvider {
             remoteViews.setTextViewText(R.id.widgetHumidity, context.getString(R.string.format_humidity, Double.parseDouble(widgetWeather.getHumidity())));
             remoteViews.setTextViewText(R.id.widgetSunrise, context.getString(R.string.format_sunrise, timeFormat.format(widgetWeather.getSunrise())));
             remoteViews.setTextViewText(R.id.widgetSunset, context.getString(R.string.format_sunset, timeFormat.format(widgetWeather.getSunset())));
-            remoteViews.setTextViewText(R.id.widgetLastUpdate, MainActivity.formatTimeWithDayIfNotToday(context, widgetWeather.getLastUpdated()));
+            remoteViews.setTextViewText(R.id.widgetLastUpdate, Formatting.formatTimeWithDayIfNotToday(context, widgetWeather.getLastUpdated()));
             remoteViews.setImageViewBitmap(R.id.widgetIcon, getWeatherIcon(widgetWeather.getIcon(), context));
 
             appWidgetManager.updateAppWidget(widgetId, remoteViews);

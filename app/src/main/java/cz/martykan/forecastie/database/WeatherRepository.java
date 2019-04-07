@@ -55,7 +55,7 @@ public class WeatherRepository extends AbstractRepository {
 
                     try {
                         JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
-                        downloadedWeather = JsonParser.convertJsonToWeather(jsonObject, city, getFormatting());
+                        downloadedWeather = JsonParser.convertJsonToWeather(jsonObject, city, context);
 
                         JSONObject uvJsonObject = new JSONObject(uvResponse.getDataString());
                         double currentUVIndex = JsonParser.convertJsonToUVIndex(uvJsonObject);
@@ -132,7 +132,7 @@ public class WeatherRepository extends AbstractRepository {
                 if (weatherLiveResponse.getStatus() == Response.Status.SUCCESS) {
                     try {
                         JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
-                        downloadedForecast = JsonParser.convertJsonToForecast(jsonObject, city, getFormatting());
+                        downloadedForecast = JsonParser.convertJsonToForecast(jsonObject, city, context);
                     } catch (JSONException e) {
                         e.printStackTrace();
                         weatherLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);

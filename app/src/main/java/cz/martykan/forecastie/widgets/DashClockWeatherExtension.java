@@ -15,8 +15,8 @@ import org.json.JSONObject;
 import java.text.DecimalFormat;
 
 import cz.martykan.forecastie.R;
-import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.activities.SplashActivity;
+import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.UnitConverter;
 
 public class DashClockWeatherExtension extends DashClockExtension {
@@ -32,6 +32,7 @@ public class DashClockWeatherExtension extends DashClockExtension {
         addWatchContentUris(new String[]{getUpdateUri().toString()});
     }
 
+    // TODO: Use common parser
     @Override
     protected void onUpdateData(int reason) {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
@@ -58,7 +59,6 @@ public class DashClockWeatherExtension extends DashClockExtension {
             // Pressure
             double pressure = UnitConverter.convertPressure((float) Double.parseDouble(reader.optJSONObject("main").getString("pressure").toString()), sp);
 
-            MainActivity.initMappings();
             publishUpdate(new ExtensionData()
                     .visible(true)
                     .icon(R.drawable.ic_cloud_white_18dp)
@@ -76,7 +76,7 @@ public class DashClockWeatherExtension extends DashClockExtension {
     }
 
     private String localize(SharedPreferences sp, String preferenceKey, String defaultValueKey) {
-        return MainActivity.localize(sp, this, preferenceKey, defaultValueKey);
+        return Formatting.localize(sp, this, preferenceKey, defaultValueKey);
     }
 
     public static void updateDashClock(Context context) {

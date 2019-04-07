@@ -63,7 +63,7 @@ public class CityRepository extends AbstractRepository {
                 for (int i = 0; i < cityList.length(); i++) {
                     JSONObject cityJSONObject = cityList.getJSONObject(i);
                     City city = JsonParser.convertJsonToCity(cityJSONObject);
-                    Weather weather = JsonParser.convertJsonToWeather(cityJSONObject, city, getFormatting());
+                    Weather weather = JsonParser.convertJsonToWeather(cityJSONObject, city, context);
 
                     weathers.add(weather);
                 }

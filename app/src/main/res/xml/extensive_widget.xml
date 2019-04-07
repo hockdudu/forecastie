@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- TODO: To all widgets: set updatePeriodMillis to 0 so only the alarm is executed -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="270dp"
     android:minHeight="120dp"

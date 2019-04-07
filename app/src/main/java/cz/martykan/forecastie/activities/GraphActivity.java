@@ -173,7 +173,7 @@ public class GraphActivity extends BaseActivity {
 
             dataset.addPoint(getDateLabel(weatherList.get(i), i), pressure);
         }
-        // TODO: Why is this specific graph smooth but the others arent?
+        // TODO: Why is this specific graph smooth but the others aren't?
         dataset.setSmooth(true);
         dataset.setColor(Color.parseColor("#4CAF50"));
         dataset.setThickness(4);

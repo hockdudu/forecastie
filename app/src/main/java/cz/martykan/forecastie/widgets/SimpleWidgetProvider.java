@@ -11,7 +11,6 @@ import android.widget.RemoteViews;
 import cz.martykan.forecastie.AlarmReceiver;
 import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
-import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
 
 public class SimpleWidgetProvider extends AbstractWidgetProvider {

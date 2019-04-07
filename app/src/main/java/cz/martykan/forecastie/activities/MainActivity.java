@@ -82,10 +82,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
     // Time in milliseconds; only reload weather if last update is longer ago than this value
     private static final int NO_UPDATE_REQUIRED_THRESHOLD = 300000;
 
-    private static Map<String, Integer> speedUnits = new HashMap<>(3);
-    private static Map<String, Integer> pressUnits = new HashMap<>(3);
-    private static boolean mappingsInitialised = false;
-
     private static final int ACTIVITY_REQUEST_CITY_SELECTED = 1;
 
     @Nullable
@@ -188,8 +184,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
         tabLayout = findViewById(R.id.tabs);
 
         destroyed = false;
-
-        initMappings();
 
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
         recentCityId = preferences.getInt("cityId", Constants.DEFAULT_CITY_ID);
@@ -354,6 +348,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
                     Handler handler = new Handler();
 
                     // TODO: You shouldn't access DAOs directly, use repositories for that
+                    // TODO: Select other city when current city is deleted
                     Runnable runnable = () -> {
                         Log.i("CityDeletion", String.format("City deleted: %s (%d)", city, city.getId()));
 
@@ -544,22 +539,22 @@ public class MainActivity extends BaseActivity implements LocationListener {
         todayDescription.setText(rainString.length() > 0 ? getString(R.string.format_description_with_rain, Formatting.capitalize(todayWeather.getDescription()), rainString) : Formatting.capitalize(todayWeather.getDescription()));
         if (sp.getString("speedUnit", "m/s").equals("bft")) {
             todayWind.setText(getString(R.string.format_wind_beaufort, UnitConverter.getBeaufortName((int) wind),
-                    todayWeather.isWindDirectionAvailable() ? getWindDirectionString(sp, this, todayWeather) : "")
+                    todayWeather.isWindDirectionAvailable() ? Formatting.getWindDirectionString(sp, this, todayWeather) : "")
             );
         } else {
             todayWind.setText(getString(R.string.format_wind, wind,
-                    localize(sp, "speedUnit", "m/s"),
-                    todayWeather.isWindDirectionAvailable() ? getWindDirectionString(sp, this, todayWeather) : "")
+                    Formatting.localize(sp, this, "speedUnit", "m/s"),
+                    todayWeather.isWindDirectionAvailable() ? Formatting.getWindDirectionString(sp, this, todayWeather) : "")
             );
         }
-        todayPressure.setText(getString(R.string.format_pressure, pressure, localize(sp, "pressureUnit", "hPa")));
+        todayPressure.setText(getString(R.string.format_pressure, pressure, Formatting.localize(sp, this, "pressureUnit", "hPa")));
         // TODO: Convert humidity to int
         todayHumidity.setText(getString(R.string.format_humidity, Integer.parseInt(todayWeather.getHumidity())));
         todaySunrise.setText(getString(R.string.format_sunrise, todayWeather.getSunrise()));
         todaySunset.setText(getString(R.string.format_sunset, todayWeather.getSunset()));
         todayIcon.setText(todayWeather.getIcon());
         todayUvIndex.setText(getString(R.string.format_uv_index, UnitConverter.convertUvIndexToRiskLevel(todayWeather.getUvIndex())));
-        lastUpdate.setText(getString(R.string.last_update, formatTimeWithDayIfNotToday(this, todayWeather.getLastUpdated())));
+        lastUpdate.setText(getString(R.string.last_update, Formatting.formatTimeWithDayIfNotToday(this, todayWeather.getLastUpdated())));
 
         todayIcon.setOnClickListener(view -> {
             Intent intent = new Intent(MainActivity.this, GraphActivity.class);
@@ -687,57 +682,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
             Snackbar.make(appView, getString(R.string.msg_connection_not_available), Snackbar.LENGTH_LONG).show();
             swipeRefreshLayout.setRefreshing(false);
         }
-    }
-
-    public static void initMappings() {
-        if (mappingsInitialised)
-            return;
-        mappingsInitialised = true;
-        speedUnits.put("m/s", R.string.speed_unit_mps);
-        speedUnits.put("kph", R.string.speed_unit_kph);
-        speedUnits.put("mph", R.string.speed_unit_mph);
-        speedUnits.put("kn", R.string.speed_unit_kn);
-
-        pressUnits.put("hPa", R.string.pressure_unit_hpa);
-        pressUnits.put("kPa", R.string.pressure_unit_kpa);
-        pressUnits.put("mm Hg", R.string.pressure_unit_mmhg);
-    }
-
-    private String localize(SharedPreferences sp, String preferenceKey, String defaultValueKey) {
-        return localize(sp, this, preferenceKey, defaultValueKey);
-    }
-
-    // TODO: This static method shouldn't be part of MainActivity
-    public static String localize(SharedPreferences sp, Context context, String preferenceKey, String defaultValueKey) {
-        String preferenceValue = sp.getString(preferenceKey, defaultValueKey);
-        String result = preferenceValue;
-        if ("speedUnit".equals(preferenceKey)) {
-            if (speedUnits.containsKey(preferenceValue)) {
-                result = context.getString(speedUnits.get(preferenceValue));
-            }
-        } else if ("pressureUnit".equals(preferenceKey)) {
-            if (pressUnits.containsKey(preferenceValue)) {
-                result = context.getString(pressUnits.get(preferenceValue));
-            }
-        }
-        return result;
-    }
-
-    public static String getWindDirectionString(SharedPreferences sp, Context context, Weather weather) {
-        try {
-            if (Double.parseDouble(weather.getWind()) != 0) {
-                String pref = sp.getString("windDirectionFormat", null);
-                if ("arrow".equals(pref)) {
-                    return weather.getWindDirection(8).getArrow(context);
-                } else if ("abbr".equals(pref)) {
-                    return weather.getWindDirection().getLocalizedString(context);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return "";
     }
 
     void getCityByLocation() {
@@ -874,21 +818,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
         }
 
         return weathers;
-    }
-
-    public static String formatTimeWithDayIfNotToday(Context context, long timeInMillis) {
-        Calendar now = Calendar.getInstance();
-        Calendar lastCheckedCal = new GregorianCalendar();
-        lastCheckedCal.setTimeInMillis(timeInMillis);
-        Date lastCheckedDate = new Date(timeInMillis);
-        String timeFormat = android.text.format.DateFormat.getTimeFormat(context).format(lastCheckedDate);
-        if (now.get(Calendar.YEAR) == lastCheckedCal.get(Calendar.YEAR) &&
-                now.get(Calendar.DAY_OF_YEAR) == lastCheckedCal.get(Calendar.DAY_OF_YEAR)) {
-            // Same day, only show time
-            return timeFormat;
-        } else {
-            return android.text.format.DateFormat.getDateFormat(context).format(lastCheckedDate) + " " + timeFormat;
-        }
     }
 
     private boolean handleConnectionStatus(Response.Status status) {
