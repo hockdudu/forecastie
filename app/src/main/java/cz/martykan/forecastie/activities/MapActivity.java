@@ -3,6 +3,8 @@ package cz.martykan.forecastie.activities;
 import android.annotation.SuppressLint;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.IdRes;
@@ -15,13 +17,13 @@ import com.roughike.bottombar.BottomBar;
 import com.roughike.bottombar.OnMenuTabClickListener;
 
 import cz.martykan.forecastie.R;
+import cz.martykan.forecastie.utils.WebViewMap;
 import cz.martykan.forecastie.viewmodels.MapViewModel;
 
 public class MapActivity extends BaseActivity {
 
     private BottomBar bottomBar;
-    private WebView webView;
-    private MapViewModel mapViewModel;
+    private WebViewMap webViewMap;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -30,7 +32,7 @@ public class MapActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
 
-        mapViewModel = ViewModelProviders.of(this).get(MapViewModel.class);
+        MapViewModel mapViewModel = ViewModelProviders.of(this).get(MapViewModel.class);
 
         if (savedInstanceState == null) {
             mapViewModel.sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -39,12 +41,11 @@ public class MapActivity extends BaseActivity {
             mapViewModel.apiKey = mapViewModel.sharedPreferences.getString("apiKey", getResources().getString(R.string.apiKey));
         }
 
-        webView = findViewById(R.id.webView);
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.loadUrl("file:///android_asset/map.html?lat=" + mapViewModel.mapLat + "&lon="
-                + mapViewModel.mapLon + "&appid=" + mapViewModel.apiKey
-                + "&zoom=" + mapViewModel.mapZoom);
-        webView.addJavascriptInterface(new HybridInterface(), "NativeInterface");
+        WebView webView = findViewById(R.id.webView);
+
+        webViewMap = new WebViewMap(webView, mapViewModel);
+        webViewMap.initialize();
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
@@ -52,6 +53,8 @@ public class MapActivity extends BaseActivity {
 
                 if (savedInstanceState != null) {
                     setMapState(mapViewModel.tabPosition);
+                } else {
+                    webViewMap.setMap(WebViewMap.MAP_RAIN_FLAG);
                 }
             }
         });
@@ -74,16 +77,13 @@ public class MapActivity extends BaseActivity {
     private void setMapState(int item) {
         switch (item) {
             case R.id.map_rain:
-                webView.loadUrl("javascript:map.removeLayer(windLayer);map.removeLayer(tempLayer);"
-                        + "map.addLayer(rainLayer);");
+                webViewMap.setMap(WebViewMap.MAP_RAIN_FLAG);
                 break;
             case R.id.map_wind:
-                webView.loadUrl("javascript:map.removeLayer(rainLayer);map.removeLayer(tempLayer);"
-                        + "map.addLayer(windLayer);");
+                webViewMap.setMap(WebViewMap.MAP_WIND_FLAG);
                 break;
             case R.id.map_temperature:
-                webView.loadUrl("javascript:map.removeLayer(windLayer);map.removeLayer(rainLayer);"
-                        + "map.addLayer(tempLayer);");
+                webViewMap.setMap(WebViewMap.MAP_TEMP_FLAG);
                 break;
             default:
                 Log.w("WeatherMap", "Layer not configured");
@@ -95,19 +95,5 @@ public class MapActivity extends BaseActivity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         bottomBar.onSaveInstanceState(outState);
-    }
-
-    private class HybridInterface {
-
-        @JavascriptInterface
-        public void transferLatLon(double lat, double lon) {
-            mapViewModel.mapLat = lat;
-            mapViewModel.mapLon = lon;
-        }
-
-        @JavascriptInterface
-        public void transferZoom(int level) {
-            mapViewModel.mapZoom = level;
-        }
     }
 }

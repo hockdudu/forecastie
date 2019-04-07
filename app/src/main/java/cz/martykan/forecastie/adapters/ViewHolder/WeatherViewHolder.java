@@ -1,4 +1,4 @@
-package cz.martykan.forecastie.models;
+package cz.martykan.forecastie.adapters.ViewHolder;
 
 import android.support.v7.widget.RecyclerView;
 import android.view.View;

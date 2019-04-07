@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.content.res.TypedArray;
 import android.graphics.Typeface;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,7 +19,7 @@ import java.util.TimeZone;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.models.Weather;
-import cz.martykan.forecastie.models.WeatherViewHolder;
+import cz.martykan.forecastie.adapters.ViewHolder.WeatherViewHolder;
 import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.UnitConverter;
 
@@ -31,16 +32,16 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
         this.context = context;
     }
 
+    @NonNull
     @Override
-    public WeatherViewHolder onCreateViewHolder(ViewGroup viewGroup, int i) {
+    public WeatherViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
         View view = LayoutInflater.from(viewGroup.getContext()).inflate(R.layout.list_row, viewGroup, false);
 
-        WeatherViewHolder viewHolder = new WeatherViewHolder(view);
-        return viewHolder;
+        return new WeatherViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(WeatherViewHolder customViewHolder, int i) {
+    public void onBindViewHolder(@NonNull WeatherViewHolder customViewHolder, int i) {
         Weather weatherItem = itemList.get(i);
 
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
