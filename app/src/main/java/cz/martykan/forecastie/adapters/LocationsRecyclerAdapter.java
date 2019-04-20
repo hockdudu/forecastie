@@ -9,7 +9,6 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.view.ViewGroup;
 
 import java.util.ArrayList;
@@ -80,7 +79,7 @@ public class LocationsRecyclerAdapter extends RecyclerView.Adapter<LocationViewH
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
 
         holder.getCityTextView().setText(weather.getCity().toString());
-        holder.getTemperatureTextView().setText(context.getString(R.string.format_temperature, UnitConverter.convertTemperature(Float.parseFloat(weather.getTemperature()), sp), sp.getString("unit", "°C")));
+        holder.getTemperatureTextView().setText(context.getString(R.string.format_temperature, UnitConverter.convertTemperature(weather.getTemperature(), sp), sp.getString("unit", "°C")));
         holder.getDescriptionTextView().setText(weather.getDescription());
         holder.getIconTextView().setText(weather.getIcon());
         holder.getIconTextView().setTypeface(weatherFont);

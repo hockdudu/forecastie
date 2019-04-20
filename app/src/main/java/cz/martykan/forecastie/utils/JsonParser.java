@@ -56,7 +56,7 @@ public class JsonParser {
             JSONObject main = weatherObject.getJSONObject("main");
 
             weather.setDate(weatherObject.getString("dt"));
-            weather.setTemperature(main.getString("temp"));
+            weather.setTemperature(main.getDouble("temp"));
             weather.setDescription(weatherObject.optJSONArray("weather").getJSONObject(0).getString("description"));
             JSONObject windObj = weatherObject.optJSONObject("wind");
             if (windObj != null) {
@@ -69,8 +69,8 @@ public class JsonParser {
                     weather.setWindDirectionDegree(null);
                 }
             }
-            weather.setPressure(main.getString("pressure"));
-            weather.setHumidity(main.getString("humidity"));
+            weather.setPressure(main.getInt("pressure"));
+            weather.setHumidity(main.getInt("humidity"));
 
             JSONObject rainObj = weatherObject.optJSONObject("rain");
             String rain;

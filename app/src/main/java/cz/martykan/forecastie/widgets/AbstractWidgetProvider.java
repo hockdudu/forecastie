@@ -4,6 +4,8 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.arch.lifecycle.MutableLiveData;
+import android.arch.lifecycle.Observer;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -15,35 +17,41 @@ import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.preference.PreferenceManager;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.widget.RemoteViews;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.text.DecimalFormat;
-import java.util.Calendar;
 import java.util.Date;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import cz.martykan.forecastie.BuildConfig;
-import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
+import cz.martykan.forecastie.database.AppDatabase;
+import cz.martykan.forecastie.database.CityDao;
+import cz.martykan.forecastie.database.CityRepository;
+import cz.martykan.forecastie.database.WeatherDao;
+import cz.martykan.forecastie.database.WeatherRepository;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
-import cz.martykan.forecastie.utils.Formatting;
-import cz.martykan.forecastie.utils.UnitConverter;
+import cz.martykan.forecastie.utils.LiveResponse;
+import cz.martykan.forecastie.utils.Response;
 
 public abstract class AbstractWidgetProvider extends AppWidgetProvider {
     protected static final long DURATION_MINUTE = TimeUnit.SECONDS.toMillis(30);
     protected static final String ACTION_UPDATE_TIME = "cz.martykan.forecastie.UPDATE_TIME";
 
+    protected static final String PREFS_NAME = "Widget";
+
+    private WeatherRepository weatherRepository;
+    private CityRepository cityRepository;
+
     @Override
     public void onReceive(Context context, Intent intent) {
+        // TODO: Check why this is being called many times on widget creation
         if (ACTION_UPDATE_TIME.equals(intent.getAction())) {
             AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
             ComponentName provider = new ComponentName(context.getPackageName(), getClass().getName());
-            int ids[] = appWidgetManager.getAppWidgetIds(provider);
+            int[] ids = appWidgetManager.getAppWidgetIds(provider);
             onUpdate(context, appWidgetManager, ids);
         } else {
             super.onReceive(context, intent);
@@ -54,8 +62,25 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
     public void onDisabled(Context context) {
         super.onDisabled(context);
 
-        Log.d(this.getClass().getSimpleName(), "Disable updates for this widget");
+        Log.v(this.getClass().getSimpleName(), "Disable updates for this widget");
         cancelUpdate(context);
+    }
+
+    @Override
+    public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        for (int appWidgetId : appWidgetIds) {
+            Log.v(this.getClass().getSimpleName(), "Widget updated, id " + appWidgetId);
+            updateWidget(context, appWidgetManager, appWidgetId);
+        }
+        scheduleNextUpdate(context);
+    }
+
+    @Override
+    public void onDeleted(Context context, int[] appWidgetIds) {
+        for (int appWidgetId : appWidgetIds) {
+            Log.v(this.getClass().getSimpleName(), "Widget deleted, id " + appWidgetId);
+            removeCityId(context, appWidgetId);
+        }
     }
 
     protected Bitmap getWeatherIcon(String text, Context context) {
@@ -74,65 +99,6 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
         return myBitmap;
     }
 
-    // TODO: Use common parser
-    protected Weather parseWidgetJson(String result, Context context) {
-        try {
-            JSONObject reader = new JSONObject(result);
-            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-
-            // Temperature
-            float temperature = UnitConverter.convertTemperature(Float.parseFloat(reader.optJSONObject("main").getString("temp").toString()), sp);
-            if (sp.getBoolean("temperatureInteger", false)) {
-                temperature = Math.round(temperature);
-            }
-
-            // Wind
-            double wind;
-            try {
-                wind = Double.parseDouble(reader.optJSONObject("wind").getString("speed").toString());
-            } catch (Exception e) {
-                e.printStackTrace();
-                wind = 0;
-            }
-            wind = UnitConverter.convertWind(wind, sp);
-
-            // Pressure
-            double pressure = UnitConverter.convertPressure((float) Double.parseDouble(reader.optJSONObject("main").getString("pressure").toString()), sp);
-
-            String description = reader.optJSONArray("weather").getJSONObject(0).getString("description");
-            description = description.substring(0,1).toUpperCase() + description.substring(1);
-
-            City city = new City();
-            city.setId(reader.getInt("id"));
-            city.setCity(reader.getString("name"));
-            city.setCountry(reader.getJSONObject("sys").getString("country"));
-
-            Weather widgetWeather = new Weather();
-            widgetWeather.setCity(city);
-            widgetWeather.setTemperature(Math.round(temperature) + localize(sp, context, "unit", "C"));
-            widgetWeather.setDescription(description);
-            widgetWeather.setWind(context.getString(R.string.wind) + ": " + new DecimalFormat("0.0").format(wind) + " " + localize(sp, context, "speedUnit", "m/s")
-                    + (widgetWeather.isWindDirectionAvailable() ? " " + Formatting.getWindDirectionString(sp, context, widgetWeather) : ""));
-            widgetWeather.setPressure(context.getString(R.string.pressure) + ": " + new DecimalFormat("0.0").format(pressure) + " " + localize(sp, context, "pressureUnit", "hPa"));
-            widgetWeather.setHumidity(reader.optJSONObject("main").getString("humidity"));
-            widgetWeather.setSunrise(reader.optJSONObject("sys").getString("sunrise"));
-            widgetWeather.setSunset(reader.optJSONObject("sys").getString("sunset"));
-            widgetWeather.setIcon(Formatting.setWeatherIcon(Integer.parseInt(reader.optJSONArray("weather").getJSONObject(0).getString("id")), Calendar.getInstance().get(Calendar.HOUR_OF_DAY), context));
-            widgetWeather.setLastUpdated(sp.getLong("lastUpdate", -1));
-
-            return widgetWeather;
-        } catch (JSONException e) {
-            Log.e("JSONException Data", result);
-            e.printStackTrace();
-            return new Weather();
-        }
-    }
-
-    protected String localize(SharedPreferences sp, Context context, String preferenceKey,
-                              String defaultValueKey) {
-        return Formatting.localize(sp, context, preferenceKey, defaultValueKey);
-    }
-
     public static void updateWidgets(Context context) {
         updateWidgets(context, ExtensiveWidgetProvider.class);
         updateWidgets(context, TimeWidgetProvider.class);
@@ -140,16 +106,15 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
     }
 
     private static void updateWidgets(Context context, Class widgetClass) {
-        Intent intent = new Intent(context.getApplicationContext(), widgetClass)
-                .setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
-        int[] ids = AppWidgetManager.getInstance(context.getApplicationContext())
-                .getAppWidgetIds(new ComponentName(context.getApplicationContext(), widgetClass));
+        Intent intent = new Intent(context.getApplicationContext(), widgetClass).setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
+        int[] ids = AppWidgetManager.getInstance(context.getApplicationContext()).getAppWidgetIds(new ComponentName(context.getApplicationContext(), widgetClass));
         intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids);
         context.getApplicationContext().sendBroadcast(intent);
     }
 
     protected void setTheme(Context context, RemoteViews remoteViews) {
-        if (PreferenceManager.getDefaultSharedPreferences(context).getBoolean("transparentWidget", false)){
+        // TODO: Make transparency configurable on a per widget basis
+        if (PreferenceManager.getDefaultSharedPreferences(context).getBoolean("transparentWidget", false)) {
             remoteViews.setInt(R.id.widgetRoot, "setBackgroundResource", R.drawable.widget_card_transparent);
             return;
         }
@@ -173,13 +138,10 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
     }
 
     protected void scheduleNextUpdate(Context context) {
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        AlarmManager alarmManager = (AlarmManager) Objects.requireNonNull(context.getSystemService(Context.ALARM_SERVICE));
         long now = new Date().getTime();
         long nextUpdate = now + DURATION_MINUTE - now % DURATION_MINUTE;
-        if (BuildConfig.DEBUG) {
-            Log.v(this.getClass().getSimpleName(), "Next widget update: " +
-                    android.text.format.DateFormat.getTimeFormat(context).format(new Date(nextUpdate)));
-        }
+        Log.v(this.getClass().getSimpleName(), "Next widget update: " + android.text.format.DateFormat.getTimeFormat(context).format(new Date(nextUpdate)));
         if (Build.VERSION.SDK_INT >= 19) {
             alarmManager.setExact(AlarmManager.RTC, nextUpdate, getTimeIntent(context));
         } else {
@@ -188,7 +150,7 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
     }
 
     protected void cancelUpdate(Context context) {
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        AlarmManager alarmManager = (AlarmManager) Objects.requireNonNull(context.getSystemService(Context.ALARM_SERVICE));
         alarmManager.cancel(getTimeIntent(context));
     }
 
@@ -197,4 +159,91 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
         intent.setAction(ACTION_UPDATE_TIME);
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
     }
+
+    protected LiveResponse<Weather> getCurrentWeather(Context context, int cityId) {
+        LiveResponse<Weather> liveResponse = new LiveResponse<>();
+        MutableLiveData<Weather> weatherMutableLiveData = new MutableLiveData<>();
+        liveResponse.setLiveData(weatherMutableLiveData);
+
+        LiveResponse<City> cityLiveResponse = getCityRepository(context).getCity(cityId);
+
+        // .observeForever(Observer) is needed, because it's triggered even after the lifecycle died.
+        // The lifecycle dies e.g. after WidgetConfigureActivity finishes
+        cityLiveResponse.getLiveData().observeForever(new Observer<City>() {
+            @Override
+            public void onChanged(@Nullable City city) {
+                cityLiveResponse.getLiveData().removeObserver(this);
+
+                if (cityLiveResponse.getStatus() == Response.Status.SUCCESS) {
+                    assert city != null;
+
+                    LiveResponse<Weather> weatherLiveResponse = getWeatherRepository(context).getCurrentWeather(city, false);
+
+                    weatherLiveResponse.getLiveData().observeForever(new Observer<Weather>() {
+                        @Override
+                        public void onChanged(@Nullable Weather weather) {
+                            weatherLiveResponse.getLiveData().removeObserver(this);
+
+                            liveResponse.setResponse(weatherLiveResponse);
+                            if (weatherLiveResponse.getStatus() == Response.Status.SUCCESS) {
+                                weatherMutableLiveData.setValue(weather);
+                            } else {
+                                weatherMutableLiveData.setValue(null);
+                            }
+                        }
+                    });
+                } else {
+                    liveResponse.setResponse(cityLiveResponse);
+                    weatherMutableLiveData.setValue(null);
+                }
+            }
+        });
+
+        return liveResponse;
+    }
+
+    protected WeatherRepository getWeatherRepository(Context context) {
+        if (weatherRepository == null) {
+            WeatherDao weatherDao = AppDatabase.getDatabase(context).weatherDao();
+            CityDao cityDao = AppDatabase.getDatabase(context).cityDao();
+            weatherRepository = new WeatherRepository(weatherDao, cityDao, context);
+        }
+
+        return weatherRepository;
+    }
+
+    protected CityRepository getCityRepository(Context context) {
+        if (cityRepository == null) {
+            CityDao cityDao = AppDatabase.getDatabase(context).cityDao();
+            cityRepository = new CityRepository(cityDao, context);
+        }
+
+        return cityRepository;
+    }
+
+    public static void saveCityId(Context context, int widgetId, int cityId) {
+        SharedPreferences.Editor editor = getSharedPreferences(context).edit();
+        editor.putInt(widgetConfigurationName(widgetId), cityId);
+        editor.apply();
+    }
+
+    public static int getCityId(Context context, int widgetId, int defaultValue) {
+        return getSharedPreferences(context).getInt(widgetConfigurationName(widgetId), defaultValue);
+    }
+
+    public static void removeCityId(Context context, int widgetId) {
+        SharedPreferences.Editor editor = getSharedPreferences(context).edit();
+        editor.remove(widgetConfigurationName(widgetId));
+        editor.apply();
+    }
+
+    protected static SharedPreferences getSharedPreferences(Context context) {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    protected static String widgetConfigurationName(int widgetId) {
+        return "widget-" + widgetId;
+    }
+
+    public abstract void updateWidget(Context context, AppWidgetManager appWidgetManager, int widgetId);
 }

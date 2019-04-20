@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.TimeZone;
 
 import cz.martykan.forecastie.R;
-import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.adapters.ViewHolder.WeatherViewHolder;
 import cz.martykan.forecastie.utils.Formatting;
@@ -47,7 +46,7 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
 
         // Temperature
-        float temperature = UnitConverter.convertTemperature(Float.parseFloat(weatherItem.getTemperature()), sp);
+        double temperature = UnitConverter.convertTemperature(weatherItem.getTemperature(), sp);
         if (sp.getBoolean("temperatureInteger", false)) {
             temperature = Math.round(temperature);
         }
@@ -67,7 +66,7 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
         wind = UnitConverter.convertWind(wind, sp);
 
         // Pressure
-        double pressure = UnitConverter.convertPressure((float) Double.parseDouble(weatherItem.getPressure()), sp);
+        double pressure = UnitConverter.convertPressure(weatherItem.getPressure(), sp);
 
         TimeZone tz = TimeZone.getDefault();
         String defaultDateFormat = context.getResources().getStringArray(R.array.dateFormatsValues)[0];
@@ -121,7 +120,7 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
             customViewHolder.itemWind.setText(context.getString(R.string.format_wind, wind, Formatting.localize(sp, context, "speedUnit", "m/s"), Formatting.getWindDirectionString(sp, context, weatherItem)));
         }
         customViewHolder.itemPressure.setText(context.getString(R.string.format_pressure, pressure, Formatting.localize(sp, context, "pressureUnit", "hPa")));
-        customViewHolder.itemHumidity.setText(context.getString(R.string.format_humidity, Integer.parseInt(weatherItem.getHumidity())));
+        customViewHolder.itemHumidity.setText(context.getString(R.string.format_humidity, weatherItem.getHumidity()));
     }
 
     @Override

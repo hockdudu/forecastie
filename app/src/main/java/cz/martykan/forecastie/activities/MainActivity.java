@@ -107,7 +107,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private LocationManager locationManager;
     private ProgressDialog progressDialog;
 
-    private int theme;
     private boolean widgetTransparent;
     private boolean destroyed = false;
 
@@ -125,7 +124,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
         super.onCreate(savedInstanceState);
 
         widgetTransparent = prefs.getBoolean("transparentWidget", false);
-        setTheme(theme = UI.getTheme(prefs.getString("theme", "fresh")));
 
         setContentView(R.layout.activity_scrolling);
         appView = findViewById(R.id.viewApp);
@@ -395,7 +393,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
                     if (weather != null) {
                         weatherIcon.setText(weather.getIcon());
-                        temperature.setText(getString(R.string.format_temperature, UnitConverter.convertTemperature(Float.parseFloat(weather.getTemperature()), prefs), prefs.getString("unit", "°C")));
+                        temperature.setText(getString(R.string.format_temperature, UnitConverter.convertTemperature(weather.getTemperature(), prefs), prefs.getString("unit", "°C")));
                     }
                 });
 
@@ -496,7 +494,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         getSupportActionBar().setTitle(todayWeather.getCity().toString());
 
         // Temperature
-        float temperature = UnitConverter.convertTemperature(Float.parseFloat(todayWeather.getTemperature()), prefs);
+        double temperature = UnitConverter.convertTemperature(todayWeather.getTemperature(), prefs);
         if (prefs.getBoolean("temperatureInteger", false)) {
             temperature = Math.round(temperature);
         }
@@ -516,7 +514,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         wind = UnitConverter.convertWind(wind, prefs);
 
         // Pressure
-        double pressure = UnitConverter.convertPressure((float) Double.parseDouble(todayWeather.getPressure()), prefs);
+        double pressure = UnitConverter.convertPressure(todayWeather.getPressure(), prefs);
 
         todayTemperature.setText(getString(R.string.format_temperature, temperature, prefs.getString("unit", "°C")));
         todayDescription.setText(rainString.length() > 0 ? getString(R.string.format_description_with_rain, Formatting.capitalize(todayWeather.getDescription()), rainString) : Formatting.capitalize(todayWeather.getDescription()));
@@ -531,8 +529,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
             );
         }
         todayPressure.setText(getString(R.string.format_pressure, pressure, Formatting.localize(prefs, this, "pressureUnit", "hPa")));
-        // TODO: Convert humidity to int
-        todayHumidity.setText(getString(R.string.format_humidity, Integer.parseInt(todayWeather.getHumidity())));
+        todayHumidity.setText(getString(R.string.format_humidity,todayWeather.getHumidity()));
         todaySunrise.setText(getString(R.string.format_sunrise, todayWeather.getSunrise()));
         todaySunset.setText(getString(R.string.format_sunset, todayWeather.getSunset()));
         todayIcon.setText(todayWeather.getIcon());
@@ -718,14 +715,14 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         switch (requestCode) {
             case MY_PERMISSIONS_ACCESS_FINE_LOCATION: {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     getCityByLocation();
                 }
-                return;
+                break;
             }
         }
     }

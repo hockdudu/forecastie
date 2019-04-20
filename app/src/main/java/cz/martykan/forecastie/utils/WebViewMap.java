@@ -2,8 +2,6 @@ package cz.martykan.forecastie.utils;
 
 import android.annotation.SuppressLint;
 import android.support.annotation.IntDef;
-import android.view.MotionEvent;
-import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 
@@ -71,7 +69,6 @@ public class WebViewMap {
     }
 
     public class HybridInterface {
-
         @JavascriptInterface
         public void transferLatLon(double lat, double lon) {
             mapViewModel.mapLat = lat;

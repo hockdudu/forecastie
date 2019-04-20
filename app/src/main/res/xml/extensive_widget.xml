@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- TODO: To all widgets: set updatePeriodMillis to 0 so only the alarm is executed -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:minWidth="270dp"
     android:minHeight="120dp"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/extensive_widget"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen|keyguard"
-    android:previewImage="@drawable/widget_preview">
+    android:previewImage="@drawable/widget_preview"
+    android:configure="cz.martykan.forecastie.activities.WidgetConfigureActivity"
+    tools:targetApi="jelly_bean_mr1">
 </appwidget-provider>

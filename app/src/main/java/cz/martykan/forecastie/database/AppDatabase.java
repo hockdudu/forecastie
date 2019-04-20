@@ -8,7 +8,7 @@ import android.content.Context;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
 
-@Database(entities = {City.class, Weather.class}, version = 5)
+@Database(entities = {City.class, Weather.class}, version = 6)
 public abstract class AppDatabase extends RoomDatabase {
 
     public abstract CityDao cityDao();
@@ -22,6 +22,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                             AppDatabase.class, "database")
+                            // TODO: We might need to remove it on release
                             .fallbackToDestructiveMigration()
                             .build();
                 }

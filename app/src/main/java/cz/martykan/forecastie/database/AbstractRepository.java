@@ -5,9 +5,10 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -17,7 +18,6 @@ import java.util.Locale;
 import java.util.Map;
 
 import cz.martykan.forecastie.R;
-import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.Response;
 
 public abstract class AbstractRepository {
@@ -27,53 +27,52 @@ public abstract class AbstractRepository {
         this.context = context;
     }
 
+    @SuppressWarnings("WeakerAccess")
     protected Response downloadJson(URL url) {
         Response response = new Response();
-        StringBuilder responseString = new StringBuilder();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         try {
+            // TODO: This is called way too many times when starting the main activity
             Log.i("URL", url.toString());
 
             url.openStream();
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
             if (urlConnection.getResponseCode() == HttpURLConnection.HTTP_OK) {
-                InputStreamReader inputStreamReader = new InputStreamReader(urlConnection.getInputStream());
-                BufferedReader r = new BufferedReader(inputStreamReader);
+                InputStream in = new BufferedInputStream(urlConnection.getInputStream());
 
-                // TODO: Remove this one line here, and maybe REFACTOR THIS WHOLE FUNCTION
-                int responseCode = urlConnection.getResponseCode();
-                String line;
-                while ((line = r.readLine()) != null) {
-                    responseString.append(line).append("\n");
+                byte[] buffer = new byte[1024];
+                int length;
+
+                while ((length = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, length);
                 }
-                r.close();
-                urlConnection.disconnect();
 
                 // Background work finished successfully
-                Log.i("Task", "done successfully");
+                Log.v("URL", "Downloaded successfully, url: " + url.toString());
                 response.setStatus(Response.Status.SUCCESS);
-                response.setDataString(responseString.toString());
-
+                response.setDataString(out.toString("UTF-8"));
             } else if (urlConnection.getResponseCode() == 429) {
                 // Too many requests
-                Log.i("Task", "too many requests");
+                Log.w("URL", "Too many requests, url: " + url.toString());
                 response.setStatus(Response.Status.TOO_MANY_REQUESTS);
             } else {
                 // Bad response from server
-                Log.i("Task", "bad response " + urlConnection.getResponseCode());
+                Log.w("URL", String.format("Bad response: %d, url: %s", urlConnection.getResponseCode(), url.toString()));
                 response.setStatus(Response.Status.BAD_RESPONSE);
             }
+
+            urlConnection.disconnect();
         } catch (IOException e) {
             // Exception while reading data from url connection
-            Log.e("IOException Data", responseString.toString());
-            e.printStackTrace();
+            Log.e("IOException Data", out.toString(), e);
             response.setStatus(Response.Status.IO_EXCEPTION);
         }
 
         return response;
     }
 
-
+    @SuppressWarnings("WeakerAccess")
     protected URL provideUrl(String apiName, Map<String, String> params) {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
         String apiKey = sp.getString("apiKey", context.getResources().getString(R.string.apiKey));
@@ -103,6 +102,7 @@ public abstract class AbstractRepository {
         return null;
     }
 
+    @SuppressWarnings("WeakerAccess")
     protected String getLanguage() {
         String language = Locale.getDefault().getLanguage();
         if (language.equals("cs")) {

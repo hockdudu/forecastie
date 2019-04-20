@@ -21,14 +21,12 @@ public class TimeWidgetProvider extends AbstractWidgetProvider {
     @Override
     public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
         for (int widgetId : appWidgetIds) {
-            RemoteViews remoteViews = new RemoteViews(context.getPackageName(),
-                    R.layout.time_widget);
+            RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.time_widget);
 
             setTheme(context, remoteViews);
 
             Intent intent = new Intent(context, AlarmReceiver.class);
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(context,
-                    0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
             remoteViews.setOnClickPendingIntent(R.id.widgetButtonRefresh, pendingIntent);
 
             Intent intent2 = new Intent(context, MainActivity.class);
@@ -37,16 +35,6 @@ public class TimeWidgetProvider extends AbstractWidgetProvider {
 
             SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
             Weather widgetWeather;
-            if (!sp.getString("lastToday", "").equals("")) {
-                widgetWeather = parseWidgetJson(sp.getString("lastToday", ""), context);
-            } else {
-                try {
-                    pendingIntent2.send();
-                } catch (PendingIntent.CanceledException e) {
-                    e.printStackTrace();
-                }
-                return;
-            }
 
             DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(context);
             String defaultDateFormat = context.getResources().getStringArray(R.array.dateFormatsValues)[0];
@@ -65,13 +53,18 @@ public class TimeWidgetProvider extends AbstractWidgetProvider {
 
             remoteViews.setTextViewText(R.id.time, timeFormat.format(new Date()));
             remoteViews.setTextViewText(R.id.date, dateString);
-            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity().toString());
-            remoteViews.setTextViewText(R.id.widgetTemperature, widgetWeather.getTemperature());
-            remoteViews.setTextViewText(R.id.widgetDescription, widgetWeather.getDescription());
-            remoteViews.setImageViewBitmap(R.id.widgetIcon, getWeatherIcon(widgetWeather.getIcon(), context));
+//            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity().toString());
+//            remoteViews.setTextViewText(R.id.widgetTemperature, widgetWeather.getTemperature());
+//            remoteViews.setTextViewText(R.id.widgetDescription, widgetWeather.getDescription());
+//            remoteViews.setImageViewBitmap(R.id.widgetIcon, getWeatherIcon(widgetWeather.getIcon(), context));
 
             appWidgetManager.updateAppWidget(widgetId, remoteViews);
         }
         scheduleNextUpdate(context);
+    }
+
+    @Override
+    public void updateWidget(Context context, AppWidgetManager appWidgetManager, int widgetId) {
+        // TODO: Implement stub method
     }
 }

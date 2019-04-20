@@ -188,6 +188,8 @@
 
             </android.support.design.widget.AppBarLayout>
 
+            <!--suppress AndroidDomInspection -->
+            <!-- TODO: We shouldn't need to suppress anything here-->
             <android.support.v4.view.ViewPager
                 android:id="@+id/viewPager"
                 android:layout_width="match_parent"

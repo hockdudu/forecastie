@@ -3,6 +3,7 @@ package cz.martykan.forecastie.utils;
 public class Response {
 
     protected Status status;
+    @SuppressWarnings("WeakerAccess")
     protected String dataString;
 
     public Status getStatus() {

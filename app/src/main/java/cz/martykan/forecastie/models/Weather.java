@@ -29,13 +29,12 @@ public class Weather implements Serializable {
     private int cityId;
     @TypeConverters(AppTypeConverter.class)
     private Date date;
-    private String temperature;
+    private double temperature;
     private String description;
     private String wind;
     private Double windDirectionDegree;
-    private String pressure;
-    // TODO: Make it a double
-    private String humidity;
+    private int pressure;
+    private int humidity;
     private String rain;
     private String id;
     private String icon;
@@ -115,11 +114,11 @@ public class Weather implements Serializable {
         this.cityId = cityId;
     }
 
-    public String getTemperature() {
+    public double getTemperature() {
         return temperature;
     }
 
-    public void setTemperature(String temperature) {
+    public void setTemperature(double temperature) {
         this.temperature = temperature;
     }
 
@@ -161,19 +160,19 @@ public class Weather implements Serializable {
         return windDirectionDegree != null;
     }
 
-    public String getPressure() {
+    public int getPressure() {
         return pressure;
     }
 
-    public void setPressure(String pressure) {
+    public void setPressure(int pressure) {
         this.pressure = pressure;
     }
 
-    public String getHumidity() {
+    public int getHumidity() {
         return humidity;
     }
 
-    public void setHumidity(String humidity) {
+    public void setHumidity(int humidity) {
         this.humidity = humidity;
     }
 

@@ -28,7 +28,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Locale;
 
-import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.widgets.AbstractWidgetProvider;
 import cz.martykan.forecastie.widgets.DashClockWeatherExtension;
 

@@ -86,7 +86,7 @@ public class GraphActivity extends BaseActivity {
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float temperature = UnitConverter.convertTemperature(Float.parseFloat(weatherList.get(i).getTemperature()), prefs);
+            float temperature = (float) UnitConverter.convertTemperature(weatherList.get(i).getTemperature(), prefs);
 
             if (temperature < minTemp) {
                 minTemp = temperature;
@@ -158,7 +158,7 @@ public class GraphActivity extends BaseActivity {
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float pressure = UnitConverter.convertPressure(Float.parseFloat(weatherList.get(i).getPressure()), prefs);
+            float pressure = UnitConverter.convertPressure(weatherList.get(i).getPressure(), prefs);
 
             if (pressure < minPressure) {
                 minPressure = pressure;
