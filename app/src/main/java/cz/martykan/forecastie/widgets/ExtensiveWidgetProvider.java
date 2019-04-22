@@ -2,61 +2,68 @@ package cz.martykan.forecastie.widgets;
 
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
+import android.arch.lifecycle.Observer;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.support.annotation.Nullable;
+import android.util.Log;
 import android.widget.RemoteViews;
 
-import java.text.DateFormat;
-
-import cz.martykan.forecastie.AlarmReceiver;
 import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.LiveResponse;
+import cz.martykan.forecastie.utils.Preferences;
+import cz.martykan.forecastie.utils.Response;
+import cz.martykan.forecastie.utils.TextFormatting;
 
 public class ExtensiveWidgetProvider extends AbstractWidgetProvider {
 
     @Override
-    public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
-        // TODO: All subclasses of AbstractWidgetProvider share a common code, could it be reused?
-        for (int widgetId : appWidgetIds) {
-            RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.extensive_widget);
-
-            setTheme(context, remoteViews);
-
-            Intent intent = new Intent(context, AlarmReceiver.class);
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-            remoteViews.setOnClickPendingIntent(R.id.widgetButtonRefresh, pendingIntent);
-
-            Intent intent2 = new Intent(context, MainActivity.class);
-            PendingIntent pendingIntent2 = PendingIntent.getActivity(context, 0, intent2, 0);
-            remoteViews.setOnClickPendingIntent(R.id.widgetRoot, pendingIntent2);
-
-            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-
-            Weather widgetWeather;
-
-            DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(context);
-
-//            remoteViews.setTextViewText(R.id.widgetCity, widgetWeather.getCity().toString());
-//            remoteViews.setTextViewText(R.id.widgetTemperature, widgetWeather.getTemperature());
-//            remoteViews.setTextViewText(R.id.widgetDescription, widgetWeather.getDescription());
-//            remoteViews.setTextViewText(R.id.widgetWind, widgetWeather.getWind());
-//            remoteViews.setTextViewText(R.id.widgetPressure, widgetWeather.getPressure());
-//            remoteViews.setTextViewText(R.id.widgetHumidity, context.getString(R.string.format_humidity, Double.parseDouble(widgetWeather.getHumidity())));
-//            remoteViews.setTextViewText(R.id.widgetSunrise, context.getString(R.string.format_sunrise, timeFormat.format(widgetWeather.getSunrise())));
-//            remoteViews.setTextViewText(R.id.widgetSunset, context.getString(R.string.format_sunset, timeFormat.format(widgetWeather.getSunset())));
-//            remoteViews.setTextViewText(R.id.widgetLastUpdate, Formatting.formatTimeWithDayIfNotToday(context, widgetWeather.getLastUpdated()));
-//            remoteViews.setImageViewBitmap(R.id.widgetIcon, getWeatherIcon(widgetWeather.getIcon(), context));
-
-            appWidgetManager.updateAppWidget(widgetId, remoteViews);
-        }
-        scheduleNextUpdate(context);
-    }
-
-    @Override
     public void updateWidget(Context context, AppWidgetManager appWidgetManager, int widgetId) {
-        // TODO: Implement stub method
+        RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.extensive_widget);
+
+        setTheme(context, remoteViews);
+
+//        Intent intent = new Intent(context, AlarmReceiver.class);
+//        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+//        remoteViews.setOnClickPendingIntent(R.id.widgetButtonRefresh, pendingIntent);
+
+        Intent intent2 = new Intent(context, MainActivity.class);
+        PendingIntent pendingIntent2 = PendingIntent.getActivity(context, 0, intent2, 0);
+        remoteViews.setOnClickPendingIntent(R.id.widgetRoot, pendingIntent2);
+
+        int currentCityId = getCityId(context, widgetId, 0);
+        if (currentCityId != 0) {
+            LiveResponse<Weather> weatherLiveResponse = getCurrentWeather(context, currentCityId);
+            weatherLiveResponse.getLiveData().observeForever(new Observer<Weather>() {
+                @Override
+                public void onChanged(@Nullable Weather weather) {
+                    weatherLiveResponse.getLiveData().removeObserver(this);
+                    if (weatherLiveResponse.getStatus() == Response.Status.SUCCESS) {
+                        assert weather != null;
+
+                        Preferences preferences = Preferences.getInstance(PreferenceManager.getDefaultSharedPreferences(context), context.getResources());
+
+                        remoteViews.setTextViewText(R.id.widgetCity, weather.getCity().toString());
+                        remoteViews.setTextViewText(R.id.widgetCity, weather.getCity().toString());
+                        remoteViews.setTextViewText(R.id.widgetTemperature, TextFormatting.getTemperature(context.getResources(), preferences, weather));
+                        remoteViews.setTextViewText(R.id.widgetDescription, TextFormatting.getDescription(context.getResources(), preferences, weather));
+                        remoteViews.setTextViewText(R.id.widgetWind, TextFormatting.getWindSpeed(context.getResources(), preferences, weather));
+                        remoteViews.setTextViewText(R.id.widgetPressure, TextFormatting.getPressure(context.getResources(), preferences, weather));
+                        remoteViews.setTextViewText(R.id.widgetHumidity, TextFormatting.getHumidity(context.getResources(), weather));
+                        remoteViews.setTextViewText(R.id.widgetSunrise, TextFormatting.getSunrise(context.getResources(), weather));
+                        remoteViews.setTextViewText(R.id.widgetSunset, TextFormatting.getSunset(context.getResources(), weather));
+                        remoteViews.setTextViewText(R.id.widgetLastUpdate, TextFormatting.getLastUpdate(context.getResources(), weather, true));
+                        remoteViews.setImageViewBitmap(R.id.widgetIcon, getWeatherIcon(TextFormatting.getIcon(context.getResources(), weather), context));
+
+                        appWidgetManager.updateAppWidget(widgetId, remoteViews);
+                    }
+                }
+            });
+        } else {
+            Log.w("ExtensiveWidgetProvider", String.format("Couldn't load city id for widget %d", widgetId));
+        }
     }
 }

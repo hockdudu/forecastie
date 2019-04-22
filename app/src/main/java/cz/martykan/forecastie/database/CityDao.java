@@ -3,6 +3,7 @@ package cz.martykan.forecastie.database;
 import android.arch.persistence.room.Dao;
 import android.arch.persistence.room.Delete;
 import android.arch.persistence.room.Insert;
+import android.arch.persistence.room.OnConflictStrategy;
 import android.arch.persistence.room.Query;
 import android.arch.persistence.room.Update;
 
@@ -18,7 +19,7 @@ public interface CityDao {
     @Query("SELECT * FROM city WHERE id = :id")
     City findById(int id);
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertAll(City... cities);
 
     @Update

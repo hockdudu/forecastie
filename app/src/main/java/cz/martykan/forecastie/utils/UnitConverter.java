@@ -5,8 +5,8 @@ import android.content.SharedPreferences;
 import java.util.Locale;
 
 public class UnitConverter {
-    public static double convertTemperature(double temperature, SharedPreferences sp) {
-        switch (sp.getString("unit", "°C")) {
+    public static double convertTemperature(double temperature, Preferences preferences) {
+        switch (preferences.getTemperatureUnit()) {
             case "°C":
                 return UnitConverter.kelvinToCelsius(temperature);
             case "°F":
@@ -25,20 +25,21 @@ public class UnitConverter {
     }
 
     // TODO: Why is sometimes float used, sometimes double? I mean on the whole app, not only here.
-    public static String getRainString(double rain, SharedPreferences sp) {
+    public static String getRainString(double rain, Preferences preferences) {
         if (rain > 0) {
-            if (sp.getString("lengthUnit", "mm").equals("mm")) {
+            if (preferences.getLengthUnit().equals("mm")) {
                 if (rain < 0.1) {
                     return "<0.1 mm";
                 } else {
-                    return String.format(Locale.ENGLISH, "%.1f %s", rain, sp.getString("lengthUnit", "mm"));
+                    // TODO: Locale.ENGLISH?! Where's the l10n here?
+                    return String.format(Locale.ENGLISH, "%.1f %s", rain, preferences.getLengthUnit());
                 }
             } else {
                 rain = rain / 25.4;
                 if (rain < 0.01) {
                     return "<0.01 in";
                 } else {
-                    return String.format(Locale.ENGLISH, "%.2f %s", rain, sp.getString("lengthUnit", "mm"));
+                    return String.format(Locale.ENGLISH, "%.2f %s", rain, preferences.getLengthUnit());
                 }
             }
         } else {
@@ -46,8 +47,8 @@ public class UnitConverter {
         }
     }
 
-    public static float convertPressure(float pressure, SharedPreferences sp) {
-        switch (sp.getString("pressureUnit", "hPa")) {
+    public static float convertPressure(float pressure, Preferences preferences) {
+        switch (preferences.getPressureUnit()) {
             case "kPa":
                 return pressure / 10;
             case "mm Hg":
@@ -59,8 +60,8 @@ public class UnitConverter {
         }
     }
 
-    public static double convertWind(double wind, SharedPreferences sp) {
-        switch (sp.getString("speedUnit", "m/s")) {
+    public static double convertWind(double wind, Preferences preferences) {
+        switch (preferences.getSpeedUnit()) {
             case "kph":
                 return wind * 3.6;
             case "mph":
@@ -89,7 +90,7 @@ public class UnitConverter {
     // TODO: Make this translatable
     public static String convertUvIndexToRiskLevel(double value) {
         /* based on: https://en.wikipedia.org/wiki/Ultraviolet_index */
-        if (value < 0) return "no info"; /* error */
+        if (value < 0) return "No info"; /* error */
         if (value < 3) return "Low";
         if (value < 6) return "Moderate";
         if (value < 8) return "High";

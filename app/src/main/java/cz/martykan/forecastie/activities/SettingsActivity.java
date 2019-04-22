@@ -26,7 +26,6 @@ import android.widget.LinearLayout;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import cz.martykan.forecastie.AlarmReceiver;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.utils.UI;
 
@@ -96,7 +95,7 @@ public class SettingsActivity extends PreferenceActivity
                 break;
             case "refreshInterval":
                 setListPreferenceSummary(key);
-                AlarmReceiver.setRecurringAlarm(this);
+//                AlarmReceiver.setRecurringAlarm(this);
                 break;
             case "dateFormat":
                 setCustomDateEnabled();

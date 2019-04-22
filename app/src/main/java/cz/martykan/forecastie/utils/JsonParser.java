@@ -1,6 +1,6 @@
 package cz.martykan.forecastie.utils;
 
-import android.content.Context;
+import android.content.res.Resources;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -49,7 +49,7 @@ public class JsonParser {
     }
 
     @NonNull
-    public static Weather convertJsonToWeather(JSONObject weatherObject, City city, Context context) {
+    public static Weather convertJsonToWeather(JSONObject weatherObject, City city, Resources resources) {
         Weather weather = new Weather();
 
         try {
@@ -60,7 +60,7 @@ public class JsonParser {
             weather.setDescription(weatherObject.optJSONArray("weather").getJSONObject(0).getString("description"));
             JSONObject windObj = weatherObject.optJSONObject("wind");
             if (windObj != null) {
-                weather.setWind(windObj.getString("speed"));
+                weather.setWind(windObj.getDouble("speed"));
 
                 if (windObj.has("deg")) {
                     weather.setWindDirectionDegree(windObj.getDouble("deg"));
@@ -73,25 +73,21 @@ public class JsonParser {
             weather.setHumidity(main.getInt("humidity"));
 
             JSONObject rainObj = weatherObject.optJSONObject("rain");
-            String rain;
+            double rain;
             if (rainObj != null) {
-                rain = getRainString(rainObj);
+                rain = getRain(rainObj);
             } else {
                 JSONObject snowObj = weatherObject.optJSONObject("snow");
                 if (snowObj != null) {
-                    rain = getRainString(snowObj);
+                    rain = getRain(snowObj);
                 } else {
-                    rain = "0";
+                    rain = 0;
                 }
             }
             weather.setRain(rain);
 
             final String weatherId = weatherObject.optJSONArray("weather").getJSONObject(0).getString("id");
             weather.setId(weatherId);
-
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(weather.getDate());
-            weather.setIcon(Formatting.setWeatherIcon(Integer.parseInt(weatherId), cal.get(Calendar.HOUR_OF_DAY), context));
 
             // Only available on weather, but not on forecast
             JSONObject sysObj = weatherObject.optJSONObject("sys");
@@ -110,18 +106,18 @@ public class JsonParser {
         return weather;
     }
 
-    public static String getRainString(JSONObject rainObj) {
-        String rain = "0";
+    private static double getRain(JSONObject rainObj) {
+        double rain = 0;
         if (rainObj != null) {
-            rain = rainObj.optString("3h", "fail");
-            if ("fail".equals(rain)) {
-                rain = rainObj.optString("1h", "0");
+            rain = rainObj.optDouble("3h");
+            if (Double.isNaN(rain)) {
+                rain = rainObj.optDouble("1h", 0);
             }
         }
         return rain;
     }
 
-    public static List<Weather> convertJsonToForecast(JSONObject jsonObject, City city, Context context) {
+    public static List<Weather> convertJsonToForecast(JSONObject jsonObject, City city, Resources resources) {
         List<Weather> weatherList = new ArrayList<>();
 
         try {
@@ -129,7 +125,7 @@ public class JsonParser {
 
             for (int i = 0; i < weathers.length(); i++) {
                 JSONObject weathersJSONObject = weathers.getJSONObject(i);
-                Weather weather = convertJsonToWeather(weathersJSONObject, city, context);
+                Weather weather = convertJsonToWeather(weathersJSONObject, city, resources);
                 weatherList.add(weather);
             }
 

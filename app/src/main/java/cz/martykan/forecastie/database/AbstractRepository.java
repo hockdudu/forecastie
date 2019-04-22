@@ -2,6 +2,7 @@ package cz.martykan.forecastie.database;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
@@ -21,10 +22,12 @@ import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.utils.Response;
 
 public abstract class AbstractRepository {
-    protected Context context;
+    protected Resources resources;
+    protected SharedPreferences sharedPreferences;
 
     AbstractRepository(Context context) {
-        this.context = context;
+        this.resources = context.getResources();
+        this.sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -36,10 +39,10 @@ public abstract class AbstractRepository {
             // TODO: This is called way too many times when starting the main activity
             Log.i("URL", url.toString());
 
-            url.openStream();
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
             if (urlConnection.getResponseCode() == HttpURLConnection.HTTP_OK) {
-                InputStream in = new BufferedInputStream(urlConnection.getInputStream());
+                InputStream urlConnectionStream = urlConnection.getInputStream();
+                InputStream in = new BufferedInputStream(urlConnectionStream);
 
                 byte[] buffer = new byte[1024];
                 int length;
@@ -52,6 +55,8 @@ public abstract class AbstractRepository {
                 Log.v("URL", "Downloaded successfully, url: " + url.toString());
                 response.setStatus(Response.Status.SUCCESS);
                 response.setDataString(out.toString("UTF-8"));
+                urlConnectionStream.close();
+                in.close();
             } else if (urlConnection.getResponseCode() == 429) {
                 // Too many requests
                 Log.w("URL", "Too many requests, url: " + url.toString());
@@ -74,8 +79,7 @@ public abstract class AbstractRepository {
 
     @SuppressWarnings("WeakerAccess")
     protected URL provideUrl(String apiName, Map<String, String> params) {
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-        String apiKey = sp.getString("apiKey", context.getResources().getString(R.string.apiKey));
+        String apiKey = sharedPreferences.getString("apiKey", resources.getString(R.string.apiKey));
 
         StringBuilder urlBuilder = new StringBuilder(String.format("https://api.openweathermap.org/data/2.5/%s?appid=%s&lang=%s&mode=json", apiName, apiKey, getLanguage()));
 

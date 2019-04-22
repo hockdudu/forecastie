@@ -33,7 +33,7 @@
     <string name="format_sunset">日落时间: %1$tR</string>
 
     <string name="last_update">最后更新:\n%s</string>
-    <string name="last_update_widget">\n最后更新: %s</string>
+    <string name="last_update_widget">最后更新: %s</string>
 
     <string name="search_title">搜索城市</string>
 
@@ -109,9 +109,9 @@
     <string name="msg_too_many_requests">请求太过频繁。请再试一遍。</string>
 
     <!-- 1: temperature; 2: unit -->
-    <string name="dash_clock_status">%1$s%2$s</string>
+    <string name="dash_clock_status">%1$s %2$s</string>
     <!-- 1: temperature; 2: unit; 3: weather description -->
-    <string name="dash_clock_expanded_title">%1$s%2$s - %3$s</string>
+    <string name="dash_clock_expanded_title">%1$s %2$s - %3$s</string>
     <!-- 1: city; 2: country; 3: wind; 4: speed units; 5: pressure; 6: pressure units; 7: humidity -->
     <string name="dash_clock_expanded_body">%1$s, %2$s\n风力: %3$s %4$s\n气压: %5$s %6$s\n湿度: %7$s %%\n</string>
     <string name="settings_title_units">单位</string>

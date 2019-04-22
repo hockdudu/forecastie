@@ -7,6 +7,7 @@ import android.arch.persistence.room.Ignore;
 import android.arch.persistence.room.PrimaryKey;
 import android.arch.persistence.room.TypeConverters;
 import android.content.Context;
+import android.content.res.Resources;
 
 import java.io.Serializable;
 import java.text.ParseException;
@@ -31,13 +32,12 @@ public class Weather implements Serializable {
     private Date date;
     private double temperature;
     private String description;
-    private String wind;
+    private double wind;
     private Double windDirectionDegree;
     private int pressure;
     private int humidity;
-    private String rain;
+    private double rain;
     private String id;
-    private String icon;
     private long lastUpdated;
     @TypeConverters(AppTypeConverter.class)
     private Date sunrise;
@@ -66,14 +66,14 @@ public class Weather implements Serializable {
             return directions[direction];
         }
 
-        public String getLocalizedString(Context context) {
+        public String getLocalizedString(Resources resources) {
             // usage of enum.ordinal() is not recommended, but whatever
-            return context.getResources().getStringArray(R.array.windDirections)[ordinal()];
+            return resources.getStringArray(R.array.windDirections)[ordinal()];
         }
 
-        public String getArrow(Context context) {
+        public String getArrow(Resources resources) {
             // usage of enum.ordinal() is not recommended, but whatever
-            return context.getResources().getStringArray(R.array.windDirectionArrows)[ordinal() / 2];
+            return resources.getStringArray(R.array.windDirectionArrows)[ordinal() / 2];
         }
     }
 
@@ -132,11 +132,11 @@ public class Weather implements Serializable {
     }
 
 
-    public String getWind() {
+    public Double getWind() {
         return wind;
     }
 
-    public void setWind(String wind) {
+    public void setWind(Double wind) {
         this.wind = wind;
     }
 
@@ -154,10 +154,6 @@ public class Weather implements Serializable {
 
     public WindDirection getWindDirection(int numberOfDirections) {
         return WindDirection.byDegree(windDirectionDegree, numberOfDirections);
-    }
-
-    public boolean isWindDirectionAvailable() {
-        return windDirectionDegree != null;
     }
 
     public int getPressure() {
@@ -228,14 +224,6 @@ public class Weather implements Serializable {
 
     public void setUvIndex(double uvIndex) { this.uvIndex = uvIndex; }
 
-    public String getIcon() {
-        return icon;
-    }
-
-    public void setIcon(String icon) {
-        this.icon = icon;
-    }
-
     public Date getDate(){
         return this.date;
     }
@@ -286,11 +274,11 @@ public class Weather implements Serializable {
         this.id = id;
     }
 
-    public String getRain() {
+    public double getRain() {
         return rain;
     }
 
-    public void setRain(String rain) {
+    public void setRain(double rain) {
         this.rain = rain;
     }
 

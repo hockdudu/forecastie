@@ -33,7 +33,7 @@
     <string name="format_sunset">Закат: %1$tR</string>
 
     <string name="last_update">Обновлено:\n%s</string>
-    <string name="last_update_widget">\nОбновлено: %s</string>
+    <string name="last_update_widget">Обновлено: %s</string>
 
     <string name="search_title">Найти населённый пункт</string>
 
@@ -117,9 +117,9 @@
     <string name="msg_too_many_requests">Слишком много запросов. Попробуйте ещё раз.</string>
 
     <!-- 1: temperature; 2: unit -->
-    <string name="dash_clock_status">%1$s%2$s</string>
+    <string name="dash_clock_status">%1$s %2$s</string>
     <!-- 1: temperature; 2: unit; 3: weather description -->
-    <string name="dash_clock_expanded_title">%1$s%2$s - %3$s</string>
+    <string name="dash_clock_expanded_title">%1$s %2$s - %3$s</string>
     <!-- 1: city; 2: country; 3: wind; 4: speed units; 5: pressure; 6: pressure units; 7: humidity -->
     <string name="dash_clock_expanded_body">%1$s, %2$s\nВетер: %3$s %4$s\nДавление: %5$s %6$s\nВлажность: %7$s %%\n</string>
     <string name="settings_title_units">Единицы</string>

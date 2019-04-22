@@ -36,14 +36,13 @@ import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.utils.LiveResponse;
 import cz.martykan.forecastie.utils.Response;
 
+import static cz.martykan.forecastie.widgets.WidgetDataRepository.getWeatherRepository;
+
 public abstract class AbstractWidgetProvider extends AppWidgetProvider {
     protected static final long DURATION_MINUTE = TimeUnit.SECONDS.toMillis(30);
     protected static final String ACTION_UPDATE_TIME = "cz.martykan.forecastie.UPDATE_TIME";
 
     protected static final String PREFS_NAME = "Widget";
-
-    private WeatherRepository weatherRepository;
-    private CityRepository cityRepository;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -83,7 +82,30 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
         }
     }
 
-    protected Bitmap getWeatherIcon(String text, Context context) {
+    protected void scheduleNextUpdate(Context context) {
+        AlarmManager alarmManager = (AlarmManager) Objects.requireNonNull(context.getSystemService(Context.ALARM_SERVICE));
+        long now = new Date().getTime();
+        long nextUpdate = now + DURATION_MINUTE - now % DURATION_MINUTE;
+        Log.v(this.getClass().getSimpleName(), "Next widget update: " + android.text.format.DateFormat.getTimeFormat(context).format(new Date(nextUpdate)));
+        if (Build.VERSION.SDK_INT >= 19) {
+            alarmManager.setExact(AlarmManager.RTC, nextUpdate, getTimeIntent(context));
+        } else {
+            alarmManager.set(AlarmManager.RTC, nextUpdate, getTimeIntent(context));
+        }
+    }
+
+    protected void cancelUpdate(Context context) {
+        AlarmManager alarmManager = (AlarmManager) Objects.requireNonNull(context.getSystemService(Context.ALARM_SERVICE));
+        alarmManager.cancel(getTimeIntent(context));
+    }
+
+    protected PendingIntent getTimeIntent(Context context) {
+        Intent intent = new Intent(context, this.getClass());
+        intent.setAction(ACTION_UPDATE_TIME);
+        return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+    }
+
+    protected static Bitmap getWeatherIcon(String text, Context context) {
         Bitmap myBitmap = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_4444);
         Canvas myCanvas = new Canvas(myBitmap);
         Paint paint = new Paint();
@@ -112,7 +134,7 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
         context.getApplicationContext().sendBroadcast(intent);
     }
 
-    protected void setTheme(Context context, RemoteViews remoteViews) {
+    protected static void setTheme(Context context, RemoteViews remoteViews) {
         // TODO: Make transparency configurable on a per widget basis
         if (PreferenceManager.getDefaultSharedPreferences(context).getBoolean("transparentWidget", false)) {
             remoteViews.setInt(R.id.widgetRoot, "setBackgroundResource", R.drawable.widget_card_transparent);
@@ -137,35 +159,12 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
         }
     }
 
-    protected void scheduleNextUpdate(Context context) {
-        AlarmManager alarmManager = (AlarmManager) Objects.requireNonNull(context.getSystemService(Context.ALARM_SERVICE));
-        long now = new Date().getTime();
-        long nextUpdate = now + DURATION_MINUTE - now % DURATION_MINUTE;
-        Log.v(this.getClass().getSimpleName(), "Next widget update: " + android.text.format.DateFormat.getTimeFormat(context).format(new Date(nextUpdate)));
-        if (Build.VERSION.SDK_INT >= 19) {
-            alarmManager.setExact(AlarmManager.RTC, nextUpdate, getTimeIntent(context));
-        } else {
-            alarmManager.set(AlarmManager.RTC, nextUpdate, getTimeIntent(context));
-        }
-    }
-
-    protected void cancelUpdate(Context context) {
-        AlarmManager alarmManager = (AlarmManager) Objects.requireNonNull(context.getSystemService(Context.ALARM_SERVICE));
-        alarmManager.cancel(getTimeIntent(context));
-    }
-
-    protected PendingIntent getTimeIntent(Context context) {
-        Intent intent = new Intent(context, this.getClass());
-        intent.setAction(ACTION_UPDATE_TIME);
-        return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-    }
-
-    protected LiveResponse<Weather> getCurrentWeather(Context context, int cityId) {
+    protected static LiveResponse<Weather> getCurrentWeather(Context context, int cityId) {
         LiveResponse<Weather> liveResponse = new LiveResponse<>();
         MutableLiveData<Weather> weatherMutableLiveData = new MutableLiveData<>();
         liveResponse.setLiveData(weatherMutableLiveData);
 
-        LiveResponse<City> cityLiveResponse = getCityRepository(context).getCity(cityId);
+        LiveResponse<City> cityLiveResponse = WidgetDataRepository.getCityRepository(context).getCity(cityId);
 
         // .observeForever(Observer) is needed, because it's triggered even after the lifecycle died.
         // The lifecycle dies e.g. after WidgetConfigureActivity finishes
@@ -202,24 +201,7 @@ public abstract class AbstractWidgetProvider extends AppWidgetProvider {
         return liveResponse;
     }
 
-    protected WeatherRepository getWeatherRepository(Context context) {
-        if (weatherRepository == null) {
-            WeatherDao weatherDao = AppDatabase.getDatabase(context).weatherDao();
-            CityDao cityDao = AppDatabase.getDatabase(context).cityDao();
-            weatherRepository = new WeatherRepository(weatherDao, cityDao, context);
-        }
 
-        return weatherRepository;
-    }
-
-    protected CityRepository getCityRepository(Context context) {
-        if (cityRepository == null) {
-            CityDao cityDao = AppDatabase.getDatabase(context).cityDao();
-            cityRepository = new CityRepository(cityDao, context);
-        }
-
-        return cityRepository;
-    }
 
     public static void saveCityId(Context context, int widgetId, int cityId) {
         SharedPreferences.Editor editor = getSharedPreferences(context).edit();

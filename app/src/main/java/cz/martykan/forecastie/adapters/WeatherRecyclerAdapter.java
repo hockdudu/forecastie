@@ -11,6 +11,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import org.w3c.dom.Text;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -20,15 +22,19 @@ import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.adapters.ViewHolder.WeatherViewHolder;
 import cz.martykan.forecastie.utils.Formatting;
+import cz.martykan.forecastie.utils.Preferences;
+import cz.martykan.forecastie.utils.TextFormatting;
 import cz.martykan.forecastie.utils.UnitConverter;
 
 public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHolder> {
     private List<Weather> itemList;
     private Context context;
+    private Preferences preferences;
 
     public WeatherRecyclerAdapter(Context context, List<Weather> itemList) {
         this.itemList = itemList;
         this.context = context;
+        this.preferences = Preferences.getInstance(PreferenceManager.getDefaultSharedPreferences(context), context.getResources());
     }
 
     @NonNull
@@ -43,37 +49,8 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
     public void onBindViewHolder(@NonNull WeatherViewHolder customViewHolder, int i) {
         Weather weatherItem = itemList.get(i);
 
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-
-        // Temperature
-        double temperature = UnitConverter.convertTemperature(weatherItem.getTemperature(), sp);
-        if (sp.getBoolean("temperatureInteger", false)) {
-            temperature = Math.round(temperature);
-        }
-
-        // Rain
-        double rain = Double.parseDouble(weatherItem.getRain());
-        String rainString = UnitConverter.getRainString(rain, sp);
-
-        // Wind
-        double wind;
-        try {
-            wind = Double.parseDouble(weatherItem.getWind());
-        } catch (Exception e) {
-            e.printStackTrace();
-            wind = 0;
-        }
-        wind = UnitConverter.convertWind(wind, sp);
-
-        // Pressure
-        double pressure = UnitConverter.convertPressure(weatherItem.getPressure(), sp);
-
         TimeZone tz = TimeZone.getDefault();
-        String defaultDateFormat = context.getResources().getStringArray(R.array.dateFormatsValues)[0];
-        String dateFormat = sp.getString("dateFormat", defaultDateFormat);
-        if ("custom".equals(dateFormat)) {
-            dateFormat = sp.getString("dateFormatCustom", defaultDateFormat);
-        }
+        String dateFormat = preferences.getDateFormat();
         String dateString;
         try {
             SimpleDateFormat resultFormat = new SimpleDateFormat(dateFormat);
@@ -83,7 +60,7 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
             dateString = context.getResources().getString(R.string.error_dateFormat);
         }
 
-        if (sp.getBoolean("differentiateDaysByTint", false)) {
+        if (preferences.areDaysDifferentiatedWithColor()) {
             Date now = new Date();
             /* Unfortunately, the getColor() that takes a theme (the next commented line) is Android 6.0 only, so we have to do it manually
              * customViewHolder.itemView.setBackgroundColor(context.getResources().getColor(R.attr.colorTintedBackground, context.getTheme())); */
@@ -104,23 +81,15 @@ public class WeatherRecyclerAdapter extends RecyclerView.Adapter<WeatherViewHold
         }
 
         customViewHolder.itemDate.setText(dateString);
-        if (sp.getBoolean("displayDecimalZeroes", false)) {
-            customViewHolder.itemTemperature.setText(context.getString(R.string.format_temperature, temperature, sp.getString("unit", "°C")));
-        } else {
-            // TODO: Use correct format
-            customViewHolder.itemTemperature.setText(context.getString(R.string.format_temperature, temperature, sp.getString("unit", "°C")));
-        }
-        customViewHolder.itemDescription.setText(rainString.length() > 0 ? context.getString(R.string.format_description_with_rain, Formatting.capitalize(weatherItem.getDescription()), rainString) : Formatting.capitalize(weatherItem.getDescription()));
-        Typeface weatherFont = Typeface.createFromAsset(context.getAssets(), "fonts/weather.ttf");
-        customViewHolder.itemIcon.setTypeface(weatherFont);
-        customViewHolder.itemIcon.setText(weatherItem.getIcon());
-        if (sp.getString("speedUnit", "m/s").equals("bft")) {
-            customViewHolder.itemWind.setText(context.getString(R.string.format_wind_beaufort, UnitConverter.getBeaufortName((int) wind), Formatting.getWindDirectionString(sp, context, weatherItem)));
-        } else {
-            customViewHolder.itemWind.setText(context.getString(R.string.format_wind, wind, Formatting.localize(sp, context, "speedUnit", "m/s"), Formatting.getWindDirectionString(sp, context, weatherItem)));
-        }
-        customViewHolder.itemPressure.setText(context.getString(R.string.format_pressure, pressure, Formatting.localize(sp, context, "pressureUnit", "hPa")));
-        customViewHolder.itemHumidity.setText(context.getString(R.string.format_humidity, weatherItem.getHumidity()));
+        customViewHolder.itemTemperature.setText(TextFormatting.getTemperature(context.getResources(), preferences, weatherItem));
+        customViewHolder.itemDescription.setText(TextFormatting.getDescription(context.getResources(), preferences, weatherItem));
+
+        customViewHolder.itemIcon.setTypeface(Typeface.createFromAsset(context.getAssets(), "fonts/weather.ttf"));
+        customViewHolder.itemIcon.setText(TextFormatting.getIcon(context.getResources(), weatherItem));
+
+        customViewHolder.itemWind.setText(TextFormatting.getWindSpeed(context.getResources(), preferences, weatherItem));
+        customViewHolder.itemPressure.setText(TextFormatting.getPressure(context.getResources(), preferences, weatherItem));
+        customViewHolder.itemHumidity.setText(TextFormatting.getHumidity(context.getResources(), weatherItem));
     }
 
     @Override

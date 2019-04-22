@@ -33,7 +33,7 @@
     <string name="format_sunset">G. Batışı: %1$tR</string>
 
     <string name="last_update">Son güncelleme:\\n%s</string>
-    <string name="last_update_widget">\\nSon güncelleme: %s</string>
+    <string name="last_update_widget">Son güncelleme: %s</string>
 
     <string name="search_title">Şehir ara</string>
 

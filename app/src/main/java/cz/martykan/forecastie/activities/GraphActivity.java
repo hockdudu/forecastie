@@ -4,6 +4,7 @@ import android.graphics.Color;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.widget.TextView;
@@ -19,6 +20,7 @@ import java.util.TimeZone;
 
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.Preferences;
 import cz.martykan.forecastie.utils.UnitConverter;
 
 public class GraphActivity extends BaseActivity {
@@ -40,6 +42,8 @@ public class GraphActivity extends BaseActivity {
     private String labelColor = "#000000";
     private String lineColor = "#333333";
 
+    private Preferences preferences;
+
     public static String EXTRA_CITY = "extra_city";
 
     @SuppressWarnings("unchecked")
@@ -51,6 +55,8 @@ public class GraphActivity extends BaseActivity {
         Toolbar toolbar = findViewById(R.id.graph_toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
+        preferences = Preferences.getInstance(PreferenceManager.getDefaultSharedPreferences(this), getResources());
 
         TextView temperatureTextView = findViewById(R.id.graphTemperatureTextView);
         TextView rainTextView = findViewById(R.id.graphRainTextView);
@@ -77,6 +83,7 @@ public class GraphActivity extends BaseActivity {
             windSpeedGraph();
         } else {
             Log.e("GraphActivity", "No extra was given");
+            finish();
         }
     }
 
@@ -86,7 +93,7 @@ public class GraphActivity extends BaseActivity {
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float temperature = (float) UnitConverter.convertTemperature(weatherList.get(i).getTemperature(), prefs);
+            float temperature = (float) UnitConverter.convertTemperature(weatherList.get(i).getTemperature(), preferences);
 
             if (temperature < minTemp) {
                 minTemp = temperature;
@@ -122,7 +129,7 @@ public class GraphActivity extends BaseActivity {
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float rain = Float.parseFloat(weatherList.get(i).getRain());
+            float rain = (float) weatherList.get(i).getRain();
 
             if (rain < minRain) {
                 minRain = rain;
@@ -158,7 +165,7 @@ public class GraphActivity extends BaseActivity {
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float pressure = UnitConverter.convertPressure(weatherList.get(i).getPressure(), prefs);
+            float pressure = UnitConverter.convertPressure(weatherList.get(i).getPressure(), preferences);
 
             if (pressure < minPressure) {
                 minPressure = pressure;
@@ -200,7 +207,7 @@ public class GraphActivity extends BaseActivity {
         // Data
         LineSet dataset = new LineSet();
         for (int i = 0; i < weatherList.size(); i++) {
-            float windSpeed = (float) UnitConverter.convertWind(Float.parseFloat(weatherList.get(i).getWind()), prefs);
+            float windSpeed = (float) UnitConverter.convertWind(weatherList.get(i).getWind(), preferences);
 
             if (windSpeed < minWindSpeed) {
                 minWindSpeed = windSpeed;

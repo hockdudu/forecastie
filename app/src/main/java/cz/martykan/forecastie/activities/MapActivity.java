@@ -2,7 +2,9 @@ package cz.martykan.forecastie.activities;
 
 import android.annotation.SuppressLint;
 import android.arch.lifecycle.ViewModelProviders;
+import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.annotation.IdRes;
 import android.util.Log;
 import android.webkit.WebView;
@@ -12,6 +14,8 @@ import com.roughike.bottombar.BottomBar;
 import com.roughike.bottombar.OnMenuTabClickListener;
 
 import cz.martykan.forecastie.R;
+import cz.martykan.forecastie.models.City;
+import cz.martykan.forecastie.utils.Preferences;
 import cz.martykan.forecastie.utils.WebViewMap;
 import cz.martykan.forecastie.viewmodels.MapViewModel;
 
@@ -19,6 +23,8 @@ public class MapActivity extends BaseActivity {
 
     private BottomBar bottomBar;
     private WebViewMap webViewMap;
+
+    public static final String EXTRA_CITY = "extra_city";
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -28,11 +34,18 @@ public class MapActivity extends BaseActivity {
 
         MapViewModel mapViewModel = ViewModelProviders.of(this).get(MapViewModel.class);
 
-        if (savedInstanceState == null) {
-            mapViewModel.sharedPreferences = prefs;
-            mapViewModel.mapLat = prefs.getFloat("latitude", 0);
-            mapViewModel.mapLon = prefs.getFloat("longitude", 0);
-            mapViewModel.apiKey = mapViewModel.sharedPreferences.getString("apiKey", getResources().getString(R.string.apiKey));
+        if (getIntent().hasExtra(EXTRA_CITY)) {
+            if (savedInstanceState == null) {
+                City currentCity = (City) getIntent().getSerializableExtra(EXTRA_CITY);
+                Preferences preferences = Preferences.getInstance(PreferenceManager.getDefaultSharedPreferences(this), getResources());
+
+                mapViewModel.mapLat = currentCity.getLat();
+                mapViewModel.mapLon = currentCity.getLon();
+                mapViewModel.apiKey = preferences.getApiKey();
+            }
+        } else {
+            Log.e("MapActivity", "No extra was given");
+            finish();
         }
 
         WebView webView = findViewById(R.id.webView);

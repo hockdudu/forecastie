@@ -42,6 +42,7 @@ public class WebViewMap {
         url.append("?lat=").append(mapViewModel.mapLat);
         url.append("&lon=").append(mapViewModel.mapLon);
         url.append("&zoom=").append(mapViewModel.mapZoom);
+        url.append("&appid=").append(mapViewModel.apiKey);
 
         if (displayPin) {
             url.append("&displayPin=true");

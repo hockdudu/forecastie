@@ -34,6 +34,11 @@ public class WeatherRepository extends AbstractRepository {
         this.cityDao = cityDao;
     }
 
+    public void persistWeathers(Weather... weathers) {
+        weatherDao.insertAll(weathers);
+    }
+
+    // TODO: Get forecast as a fallback if current weather is too old and there's no internet
     public LiveResponse<Weather> getCurrentWeather(City city, boolean forceDownload) {
         LiveResponse<Weather> weatherLiveResponse = new LiveResponse<>();
         MutableLiveData<Weather> weatherLiveData = new MutableLiveData<>();
@@ -55,7 +60,7 @@ public class WeatherRepository extends AbstractRepository {
 
                     try {
                         JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
-                        downloadedWeather = JsonParser.convertJsonToWeather(jsonObject, city, context);
+                        downloadedWeather = JsonParser.convertJsonToWeather(jsonObject, city, resources);
 
                         JSONObject uvJsonObject = new JSONObject(uvResponse.getDataString());
                         double currentUVIndex = JsonParser.convertJsonToUVIndex(uvJsonObject);
@@ -132,13 +137,28 @@ public class WeatherRepository extends AbstractRepository {
                 if (weatherLiveResponse.getStatus() == Response.Status.SUCCESS) {
                     try {
                         JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
-                        downloadedForecast = JsonParser.convertJsonToForecast(jsonObject, city, context);
+                        downloadedForecast = JsonParser.convertJsonToForecast(jsonObject, city, resources);
                     } catch (JSONException e) {
                         e.printStackTrace();
                         weatherLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);
                     }
 
                     if (downloadedForecast.size() != 0) {
+                        // TODO: Fix rare SQL Exception!
+                        /*
+                        SQL Exception, FOREIGN KEY constraint fails
+
+                        What might be the problem: On the MainActivity, both updateTodayWeather()
+                        and updateForecast() query for the city. Both receive it with it's current
+                        weather ID. But updateTodayWeather() changes it and updateForecast() still
+                        has a reference to the old one. So the "weathers" list also has the current
+                        weather. We can't delete it, what causes the constraint failure.
+
+                        Possible fix: Every weather has its purpose flag, like "current" and
+                        "forecast".
+                        It could also be a way of handling temporary cities for the current
+                        location.
+                         */
                         weatherDao.delete(weathers.toArray(new Weather[0]));
                         weatherDao.insertAll(downloadedForecast.toArray(new Weather[0]));
                         weathers = downloadedForecast;

@@ -37,7 +37,7 @@
     <string name="format_uv_index">UV indeks: %1$s</string>
 
     <string name="last_update">Seneste opdatering:\n%s</string>
-    <string name="last_update_widget">\nSeneste opdatering: %s</string>
+    <string name="last_update_widget">Seneste opdatering: %s</string>
 
     <string name="search_title">Søge efter by</string>
 

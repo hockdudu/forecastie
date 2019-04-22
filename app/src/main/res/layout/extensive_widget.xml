@@ -30,11 +30,12 @@
                 android:id="@+id/widgetButtonRefresh"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:background="@android:color/transparent"
-                android:src="@drawable/ic_refresh_white_24dp"
-                android:layout_marginTop="14dp"
+                android:layout_marginStart="16dp"
                 android:layout_marginLeft="16dp"
-                android:layout_marginStart="16dp"/>
+                android:layout_marginTop="14dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/action_refresh"
+                android:src="@drawable/ic_refresh_white_24dp" />
         </LinearLayout>
 
         <TextView
@@ -100,7 +101,9 @@
             android:id="@+id/widgetLastUpdate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="16sp" />
+            android:textColor="@color/text_light"
+            android:textSize="16sp"
+            tools:text="Last update: 00:00" />
     </LinearLayout>
 
     <ImageView

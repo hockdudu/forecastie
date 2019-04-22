@@ -1,0 +1,209 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 7,
+    "identityHash": "13f71f586de0d7c54ab1ee64e49bc3be",
+    "entities": [
+      {
+        "tableName": "City",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `city` TEXT, `country` TEXT, `lat` REAL NOT NULL, `lon` REAL NOT NULL, `currentWeatherId` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`currentWeatherId`) REFERENCES `Weather`(`uid`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "country",
+            "columnName": "country",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lat",
+            "columnName": "lat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lon",
+            "columnName": "lon",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentWeatherId",
+            "columnName": "currentWeatherId",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "columnNames": [
+            "id"
+          ],
+          "autoGenerate": false
+        },
+        "indices": [
+          {
+            "name": "index_City_currentWeatherId",
+            "unique": false,
+            "columnNames": [
+              "currentWeatherId"
+            ],
+            "createSql": "CREATE  INDEX `index_City_currentWeatherId` ON `${TABLE_NAME}` (`currentWeatherId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "Weather",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "currentWeatherId"
+            ],
+            "referencedColumns": [
+              "uid"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "Weather",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`uid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `cityId` INTEGER NOT NULL, `date` INTEGER, `temperature` REAL NOT NULL, `description` TEXT, `wind` REAL NOT NULL, `windDirectionDegree` REAL, `pressure` INTEGER NOT NULL, `humidity` INTEGER NOT NULL, `rain` REAL NOT NULL, `id` TEXT, `lastUpdated` INTEGER NOT NULL, `sunrise` INTEGER, `sunset` INTEGER, `uvIndex` REAL NOT NULL, FOREIGN KEY(`cityId`) REFERENCES `City`(`id`) ON UPDATE CASCADE ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "uid",
+            "columnName": "uid",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cityId",
+            "columnName": "cityId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "temperature",
+            "columnName": "temperature",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "wind",
+            "columnName": "wind",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windDirectionDegree",
+            "columnName": "windDirectionDegree",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "pressure",
+            "columnName": "pressure",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "humidity",
+            "columnName": "humidity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rain",
+            "columnName": "rain",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sunrise",
+            "columnName": "sunrise",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sunset",
+            "columnName": "sunset",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "uvIndex",
+            "columnName": "uvIndex",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "columnNames": [
+            "uid"
+          ],
+          "autoGenerate": true
+        },
+        "indices": [
+          {
+            "name": "index_Weather_cityId",
+            "unique": false,
+            "columnNames": [
+              "cityId"
+            ],
+            "createSql": "CREATE  INDEX `index_Weather_cityId` ON `${TABLE_NAME}` (`cityId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "City",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE",
+            "columns": [
+              "cityId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, \"13f71f586de0d7c54ab1ee64e49bc3be\")"
+    ]
+  }
+}

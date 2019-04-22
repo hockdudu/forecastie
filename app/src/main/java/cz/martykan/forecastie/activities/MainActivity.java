@@ -6,7 +6,6 @@ import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
@@ -51,8 +50,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
-import cz.martykan.forecastie.AlarmReceiver;
-import cz.martykan.forecastie.Constants;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.adapters.ViewPagerAdapter;
 import cz.martykan.forecastie.adapters.WeatherRecyclerAdapter;
@@ -63,9 +60,10 @@ import cz.martykan.forecastie.fragments.AboutDialogFragment;
 import cz.martykan.forecastie.fragments.RecyclerViewFragment;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
-import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.LiveResponse;
+import cz.martykan.forecastie.utils.Preferences;
 import cz.martykan.forecastie.utils.Response;
+import cz.martykan.forecastie.utils.TextFormatting;
 import cz.martykan.forecastie.utils.UI;
 import cz.martykan.forecastie.utils.UnitConverter;
 
@@ -116,6 +114,8 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private WeatherRepository weatherRepository;
     private CityRepository cityRepository;
 
+    private Preferences preferences;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // Initialize the associated SharedPreferences file with default values
@@ -123,6 +123,9 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         super.onCreate(savedInstanceState);
 
+        preferences = Preferences.getInstance(prefs, this.getResources());
+
+        // TODO: Why is it needed here?
         widgetTransparent = prefs.getBoolean("transparentWidget", false);
 
         setContentView(R.layout.activity_scrolling);
@@ -173,7 +176,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         tabLayout = findViewById(R.id.tabs);
 
         destroyed = false;
-        recentCityId = prefs.getInt("cityId", Constants.DEFAULT_CITY_ID);
+        recentCityId = preferences.getLastCityId();
 
         // Preload data from cache
         refreshWeather();
@@ -184,7 +187,8 @@ public class MainActivity extends BaseActivity implements LocationListener {
         initializeDrawer();
 
         // Set autoupdater
-        AlarmReceiver.setRecurringAlarm(this);
+        // TODO: Use WorkManager (https://developer.android.com/topic/libraries/architecture/workmanager)
+//        AlarmReceiver.setRecurringAlarm(this);
 
         swipeRefreshLayout.setOnRefreshListener(this::downloadWeather);
 
@@ -236,7 +240,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
     @Override
     public void onResume() {
         super.onResume();
-        if (UI.getTheme(prefs.getString("theme", "fresh")) != theme || prefs.getBoolean("transparentWidget", false) != widgetTransparent) {
+        if (UI.getTheme(preferences.getTheme()) != theme || preferences.isWidgetTransparent() != widgetTransparent) {
             // Restart activity to apply theme
             overridePendingTransition(0, 0);
             finish();
@@ -356,12 +360,17 @@ public class MainActivity extends BaseActivity implements LocationListener {
                             Runnable runnable1 = () -> {
                                 appDatabase.runInTransaction(() -> {
                                     city.setCurrentWeatherId(null);
-                                    cityRepository.addCity(city);
+                                    cityRepository.persistCity(city);
 
                                     if (cityWeather != null) {
-                                        appDatabase.weatherDao().insertAll(cityWeather);
+                                        // TODO: Test if this reworked code works
+                                        weatherRepository.persistWeathers(cityWeather);
                                         city.setCurrentWeatherId(cityWeather.getUid());
-                                        appDatabase.cityDao().persist(city);
+                                        cityRepository.persistCity(city);
+
+//                                        appDatabase.weatherDao().insertAll(cityWeather);
+//                                        city.setCurrentWeatherId(cityWeather.getUid());
+//                                        appDatabase.cityDao().persist(city);
                                     }
 
                                     appDatabase.weatherDao().insertAll(cityForecast.toArray(new Weather[0]));
@@ -392,8 +401,8 @@ public class MainActivity extends BaseActivity implements LocationListener {
                     handleConnectionStatus(weatherLiveData.getStatus());
 
                     if (weather != null) {
-                        weatherIcon.setText(weather.getIcon());
-                        temperature.setText(getString(R.string.format_temperature, UnitConverter.convertTemperature(weather.getTemperature(), prefs), prefs.getString("unit", "°C")));
+                        weatherIcon.setText(TextFormatting.getIcon(getResources(), weather));
+                        temperature.setText(TextFormatting.getTemperature(getResources(), preferences, weather));
                     }
                 });
 
@@ -454,9 +463,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private void selectLocation(City city) {
         recentCityId = city.getId();
 
-        SharedPreferences.Editor editor = prefs.edit();
-        editor.putInt("cityId", city.getId());
-        editor.apply();
+        preferences.setLastCityId(city.getId());
     }
 
     private void saveLocation(City city) {
@@ -468,7 +475,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         Handler handler = new Handler();
         Runnable runnable = () -> {
-            cityRepository.addCity(city);
+            cityRepository.persistCity(city);
 
             handler.post(onFinish);
         };
@@ -494,47 +501,23 @@ public class MainActivity extends BaseActivity implements LocationListener {
         getSupportActionBar().setTitle(todayWeather.getCity().toString());
 
         // Temperature
-        double temperature = UnitConverter.convertTemperature(todayWeather.getTemperature(), prefs);
-        if (prefs.getBoolean("temperatureInteger", false)) {
+        double temperature = UnitConverter.convertTemperature(todayWeather.getTemperature(), preferences);
+        if (preferences.isTemperatureInteger()) {
             temperature = Math.round(temperature);
         }
 
         // Rain
-        double rain = Double.parseDouble(todayWeather.getRain());
-        String rainString = UnitConverter.getRainString(rain, prefs);
 
-        // Wind
-        double wind;
-        try {
-            wind = Double.parseDouble(todayWeather.getWind());
-        } catch (Exception e) {
-            e.printStackTrace();
-            wind = 0;
-        }
-        wind = UnitConverter.convertWind(wind, prefs);
-
-        // Pressure
-        double pressure = UnitConverter.convertPressure(todayWeather.getPressure(), prefs);
-
-        todayTemperature.setText(getString(R.string.format_temperature, temperature, prefs.getString("unit", "°C")));
-        todayDescription.setText(rainString.length() > 0 ? getString(R.string.format_description_with_rain, Formatting.capitalize(todayWeather.getDescription()), rainString) : Formatting.capitalize(todayWeather.getDescription()));
-        if (prefs.getString("speedUnit", "m/s").equals("bft")) {
-            todayWind.setText(getString(R.string.format_wind_beaufort, UnitConverter.getBeaufortName((int) wind),
-                    todayWeather.isWindDirectionAvailable() ? Formatting.getWindDirectionString(prefs, this, todayWeather) : "")
-            );
-        } else {
-            todayWind.setText(getString(R.string.format_wind, wind,
-                    Formatting.localize(prefs, this, "speedUnit", "m/s"),
-                    todayWeather.isWindDirectionAvailable() ? Formatting.getWindDirectionString(prefs, this, todayWeather) : "")
-            );
-        }
-        todayPressure.setText(getString(R.string.format_pressure, pressure, Formatting.localize(prefs, this, "pressureUnit", "hPa")));
-        todayHumidity.setText(getString(R.string.format_humidity,todayWeather.getHumidity()));
-        todaySunrise.setText(getString(R.string.format_sunrise, todayWeather.getSunrise()));
-        todaySunset.setText(getString(R.string.format_sunset, todayWeather.getSunset()));
-        todayIcon.setText(todayWeather.getIcon());
-        todayUvIndex.setText(getString(R.string.format_uv_index, UnitConverter.convertUvIndexToRiskLevel(todayWeather.getUvIndex())));
-        lastUpdate.setText(getString(R.string.last_update, Formatting.formatTimeWithDayIfNotToday(this, todayWeather.getLastUpdated())));
+        todayTemperature.setText(TextFormatting.getTemperature(getResources(), preferences, todayWeather));
+        todayDescription.setText(TextFormatting.getDescription(getResources(), preferences, todayWeather));
+        todayWind.setText(TextFormatting.getWindSpeed(getResources(), preferences, todayWeather));
+        todayPressure.setText(TextFormatting.getPressure(getResources(), preferences, todayWeather));
+        todayHumidity.setText(TextFormatting.getHumidity(getResources(), todayWeather));
+        todaySunrise.setText(TextFormatting.getSunrise(getResources(), todayWeather));
+        todaySunset.setText(TextFormatting.getSunset(getResources(), todayWeather));
+        todayIcon.setText(TextFormatting.getIcon(getResources(), todayWeather));
+        todayUvIndex.setText(TextFormatting.getUvIndex(getResources(), todayWeather));
+        lastUpdate.setText(TextFormatting.getLastUpdate(getResources(), todayWeather, false));
 
         todayIcon.setOnClickListener(view -> {
             Intent intent = new Intent(MainActivity.this, GraphActivity.class);
@@ -612,9 +595,15 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 downloadWeather();
                 return true;
             case R.id.action_map: {
-                Intent intent = new Intent(MainActivity.this, MapActivity.class);
-                startActivity(intent);
-                return true;
+                if (todayWeather != null) {
+                    Intent intent = new Intent(MainActivity.this, MapActivity.class);
+                    intent.putExtra(MapActivity.EXTRA_CITY, todayWeather.getCity());
+                    startActivity(intent);
+                    return true;
+                } else {
+                    Log.w("MainActivity", "Tried to open map with current weather being null");
+                    return false;
+                }
             }
             case R.id.action_graphs: {
                 Intent intent = new Intent(MainActivity.this, GraphActivity.class);

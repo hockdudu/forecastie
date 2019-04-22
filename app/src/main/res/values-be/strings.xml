@@ -33,7 +33,7 @@
     <string name="format_sunset">Закат: %1$tR</string>
 
     <string name="last_update">Апошняе абнаўленне:\n%s</string>
-    <string name="last_update_widget">\nАпошняе абнаўленне: %s</string>
+    <string name="last_update_widget">Апошняе абнаўленне: %s</string>
 
     <string name="search_title">Шукаць населены пункт</string>
 
@@ -121,9 +121,9 @@
     <string name="msg_too_many_requests">Занадта шмат запытаў. Паспрабуйце яшчэ раз.</string>
 
     <!-- 1: temperature; 2: unit -->
-    <string name="dash_clock_status">%1$s%2$s</string>
+    <string name="dash_clock_status">%1$s %2$s</string>
     <!-- 1: temperature; 2: unit; 3: weather description -->
-    <string name="dash_clock_expanded_title">%1$s%2$s - %3$s</string>
+    <string name="dash_clock_expanded_title">%1$s %2$s - %3$s</string>
     <!-- 1: city; 2: country; 3: wind; 4: speed units; 5: pressure; 6: pressure units; 7: humidity -->
     <string name="dash_clock_expanded_body">%1$s, %2$s\nВецер: %3$s %4$s\nЦіск: %5$s %6$s\nВільготнасць: %7$s %%\n</string>
     <string name="settings_title_units">Адзінкі</string>

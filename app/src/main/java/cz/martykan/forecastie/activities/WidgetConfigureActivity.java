@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProviderInfo;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -22,7 +23,7 @@ import cz.martykan.forecastie.widgets.AbstractWidgetProvider;
 
 public class WidgetConfigureActivity extends AppCompatActivity {
 
-    private int appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
+    protected int appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,7 +32,11 @@ public class WidgetConfigureActivity extends AppCompatActivity {
         setResult(RESULT_CANCELED);
 
         Bundle extras = getIntent().getExtras();
-        if (extras == null || (appWidgetId = extras.getInt(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)) == AppWidgetManager.INVALID_APPWIDGET_ID) {
+        if (extras != null) {
+            appWidgetId = extras.getInt(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+        }
+
+        if (!isActivityValid()) {
             finish();
             return;
         }
@@ -48,15 +53,18 @@ public class WidgetConfigureActivity extends AppCompatActivity {
             assert cities != null;
 
             String[] cityNames = new String[cities.size()];
+            int[] cityIds = new int[cities.size()];
 
             Collections.sort(cities, (o1, o2) -> o1.getCity().compareTo(o2.getCity()));
 
             // TODO: Add button to open activity if there's no city, or something like that
             for (int i = 0; i < cities.size(); i++) {
                 cityNames[i] = cities.get(i).toString();
+                cityIds[i] = cities.get(i).getId();
             }
 
             arrayAdapter.addAll(cityNames);
+            citySpinner.setSelection(getCityIndex(cityIds));
         });
 
         citySpinner.setAdapter(arrayAdapter);
@@ -68,28 +76,7 @@ public class WidgetConfigureActivity extends AppCompatActivity {
             if (cities != null) {
                 if (selectedCityIndex != AdapterView.INVALID_POSITION) {
                     City selectedCity = cities.get(selectedCityIndex);
-                    AbstractWidgetProvider.saveCityId(this, appWidgetId, selectedCity.getId());
-
-                    AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(this);
-                    AppWidgetProviderInfo appWidgetProviderInfo = appWidgetManager.getAppWidgetInfo(appWidgetId);
-                    String className = appWidgetProviderInfo.provider.getClassName();
-
-                    try {
-                        Class widgetClass = Class.forName(className);
-
-                        Intent broadcastIntent = new Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE, null, this, widgetClass);
-                        broadcastIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, new int[]{appWidgetId});
-//                        broadcastIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
-                        sendBroadcast(broadcastIntent);
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                    }
-
-                    Intent resultValue = new Intent();
-                    resultValue.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
-                    setResult(RESULT_OK, resultValue);
-
-                    finish();
+                    onWidgetConfigured(selectedCity);
                 }
                 // TODO: What to do if there's no city (it's empty)?
             }
@@ -97,5 +84,37 @@ public class WidgetConfigureActivity extends AppCompatActivity {
         });
 
         cancelButton.setOnClickListener(v -> finish());
+    }
+
+    protected void onWidgetConfigured(City city) {
+        AbstractWidgetProvider.saveCityId(this, appWidgetId, city.getId());
+
+        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(this);
+        AppWidgetProviderInfo appWidgetProviderInfo = appWidgetManager.getAppWidgetInfo(appWidgetId);
+        String className = appWidgetProviderInfo.provider.getClassName();
+
+        try {
+            Class widgetClass = Class.forName(className);
+
+            Intent broadcastIntent = new Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE, null, this, widgetClass);
+            broadcastIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, new int[]{appWidgetId});
+//            broadcastIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
+            sendBroadcast(broadcastIntent);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        Intent resultValue = new Intent();
+        resultValue.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
+        setResult(RESULT_OK, resultValue);
+        finish();
+    }
+
+    protected boolean isActivityValid() {
+        return appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID;
+    }
+
+    protected int getCityIndex(int[] cityIds) {
+        return 0;
     }
 }

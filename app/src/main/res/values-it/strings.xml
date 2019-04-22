@@ -33,7 +33,7 @@
     <string name="format_sunset">Tramonto: %1$tR</string>
 
     <string name="last_update">Ultimo aggiornamento:\n%s</string>
-    <string name="last_update_widget">\nUltimo aggiornamento: %s</string>
+    <string name="last_update_widget">Ultimo aggiornamento: %s</string>
 
     <string name="search_title">Cerca città</string>
 
@@ -121,9 +121,9 @@
     <string name="msg_too_many_requests">Troppe richieste. Riprova.</string>
 
     <!-- 1: temperature; 2: unit -->
-    <string name="dash_clock_status">%1$s%2$s</string>
+    <string name="dash_clock_status">%1$s %2$s</string>
     <!-- 1: temperature; 2: unit; 3: weather description -->
-    <string name="dash_clock_expanded_title">%1$s%2$s - %3$s</string>
+    <string name="dash_clock_expanded_title">%1$s %2$s - %3$s</string>
     <!-- 1: city; 2: country; 3: wind; 4: speed units; 5: pressure; 6: pressure units; 7: humidity -->
     <string name="dash_clock_expanded_body">%1$s, %2$s\nVento: %3$s %4$s\nPressione: %5$s %6$s\nUmidità: %7$s %%\n</string>
     <string name="settings_title_units">Unità</string>

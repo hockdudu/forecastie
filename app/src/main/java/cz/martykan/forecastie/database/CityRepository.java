@@ -28,12 +28,8 @@ public class CityRepository extends AbstractRepository {
         this.cityDao = cityDao;
     }
 
-    public void addCity(City city) {
-        AppDatabase.getDatabase(context).runInTransaction(() -> {
-            if (cityDao.findById(city.getId()) == null) {
-                cityDao.insertAll(city);
-            }
-        });
+    public void persistCity(City city) {
+        cityDao.insertAll(city);
     }
 
     public LiveResponse<List<Weather>> searchCity(String cityName) {
@@ -63,7 +59,7 @@ public class CityRepository extends AbstractRepository {
                 for (int i = 0; i < cityList.length(); i++) {
                     JSONObject cityJSONObject = cityList.getJSONObject(i);
                     City city = JsonParser.convertJsonToCity(cityJSONObject);
-                    Weather weather = JsonParser.convertJsonToWeather(cityJSONObject, city, context);
+                    Weather weather = JsonParser.convertJsonToWeather(cityJSONObject, city, resources);
 
                     weathers.add(weather);
                 }
@@ -100,7 +96,7 @@ public class CityRepository extends AbstractRepository {
                         city = JsonParser.convertJsonToCity(cityObject);
 
                         if (city != null) {
-                            addCity(city);
+                            persistCity(city);
                         }
                     } catch (JSONException e) {
                         e.printStackTrace();

@@ -33,7 +33,7 @@
     <string name="format_sunset">Coucher du soleil: %1$tR</string>
 
     <string name="last_update">Dernière mise à jour :\n%s</string>
-    <string name="last_update_widget">\nDernière mise à jour : %s</string>
+    <string name="last_update_widget">Dernière mise à jour : %s</string>
 
     <string name="search_title">Rechercher une ville</string>
 
@@ -122,9 +122,9 @@
     <string name="msg_too_many_requests">Trop de requêtes. Veuillez réessayer.</string>
 
     <!-- 1: temperature; 2: unit -->
-    <string name="dash_clock_status">%1$s%2$s</string>
+    <string name="dash_clock_status">%1$s %2$s</string>
     <!-- 1: temperature; 2: unit; 3: weather description -->
-    <string name="dash_clock_expanded_title">%1$s%2$s - %3$s</string>
+    <string name="dash_clock_expanded_title">%1$s %2$s - %3$s</string>
     <!-- 1: city; 2: country; 3: wind; 4: speed units; 5: pressure; 6: pressure units; 7: humidity -->
     <string name="dash_clock_expanded_body">%1$s, %2$s\n
    Vent : %3$s %4$s\n

@@ -17,6 +17,8 @@ import java.util.List;
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.adapters.ViewHolder.LocationViewHolder;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.Preferences;
+import cz.martykan.forecastie.utils.TextFormatting;
 import cz.martykan.forecastie.utils.UnitConverter;
 import cz.martykan.forecastie.utils.WebViewMap;
 import cz.martykan.forecastie.viewmodels.MapViewModel;
@@ -28,6 +30,7 @@ public class LocationsRecyclerAdapter extends RecyclerView.Adapter<LocationViewH
     private final LayoutInflater inflater;
     private final boolean darkTheme;
     private final boolean blackTheme;
+    private final Preferences preferences;
 
     private LocationSelectedListener locationSelectedListener = null;
 
@@ -39,6 +42,7 @@ public class LocationsRecyclerAdapter extends RecyclerView.Adapter<LocationViewH
         this.inflater = LayoutInflater.from(context);
         this.darkTheme = darkTheme;
         this.blackTheme = blackTheme;
+        this.preferences = Preferences.getInstance(PreferenceManager.getDefaultSharedPreferences(context), context.getResources());
     }
 
     public void replaceList(@NonNull List<Weather> newWeathers) {
@@ -76,12 +80,10 @@ public class LocationsRecyclerAdapter extends RecyclerView.Adapter<LocationViewH
         Typeface weatherFont = Typeface.createFromAsset(context.getAssets(), "fonts/weather.ttf");
         Weather weather = weathers.get(position);
 
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-
         holder.getCityTextView().setText(weather.getCity().toString());
-        holder.getTemperatureTextView().setText(context.getString(R.string.format_temperature, UnitConverter.convertTemperature(weather.getTemperature(), sp), sp.getString("unit", "°C")));
-        holder.getDescriptionTextView().setText(weather.getDescription());
-        holder.getIconTextView().setText(weather.getIcon());
+        holder.getTemperatureTextView().setText(TextFormatting.getTemperature(context.getResources(), preferences, weather));
+        holder.getDescriptionTextView().setText(TextFormatting.getDescription(context.getResources(), preferences, weather));
+        holder.getIconTextView().setText(TextFormatting.getIcon(context.getResources(), weather));
         holder.getIconTextView().setTypeface(weatherFont);
 
         MapViewModel mapViewModel = new MapViewModel();

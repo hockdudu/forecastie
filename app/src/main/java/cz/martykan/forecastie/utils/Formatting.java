@@ -2,8 +2,11 @@ package cz.martykan.forecastie.utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.support.annotation.NonNull;
+import android.util.Log;
 
+import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -36,34 +39,35 @@ public class Formatting {
         PRESSURE_UNITS = Collections.unmodifiableMap(pressUnits);
     }
 
-    public static String setWeatherIcon(int actualId, int hourOfDay, Context context) {
+    // TODO: This is only used in one place
+    public static String getWeatherIcon(int actualId, int hourOfDay, Resources resources) {
         int id = actualId / 100;
         String icon = "";
         if (actualId == 800) {
             if (hourOfDay >= 7 && hourOfDay < 20) {
-                icon = context.getString(R.string.weather_sunny);
+                icon = resources.getString(R.string.weather_sunny);
             } else {
-                icon = context.getString(R.string.weather_clear_night);
+                icon = resources.getString(R.string.weather_clear_night);
             }
         } else {
             switch (id) {
                 case 2:
-                    icon = context.getString(R.string.weather_thunder);
+                    icon = resources.getString(R.string.weather_thunder);
                     break;
                 case 3:
-                    icon = context.getString(R.string.weather_drizzle);
+                    icon = resources.getString(R.string.weather_drizzle);
                     break;
                 case 7:
-                    icon = context.getString(R.string.weather_foggy);
+                    icon = resources.getString(R.string.weather_foggy);
                     break;
                 case 8:
-                    icon = context.getString(R.string.weather_cloudy);
+                    icon = resources.getString(R.string.weather_cloudy);
                     break;
                 case 6:
-                    icon = context.getString(R.string.weather_snowy);
+                    icon = resources.getString(R.string.weather_snowy);
                     break;
                 case 5:
-                    icon = context.getString(R.string.weather_rainy);
+                    icon = resources.getString(R.string.weather_rainy);
                     break;
             }
         }
@@ -78,29 +82,38 @@ public class Formatting {
         }
     }
 
-    public static String localize(SharedPreferences sp, Context context, String preferenceKey, String defaultValueKey) {
-        String preferenceValue = sp.getString(preferenceKey, defaultValueKey);
-        String result = preferenceValue;
-        if ("speedUnit".equals(preferenceKey)) {
-            if (SPEED_UNITS.containsKey(preferenceValue)) {
-                result = context.getString(SPEED_UNITS.get(preferenceValue));
-            }
-        } else if ("pressureUnit".equals(preferenceKey)) {
-            if (PRESSURE_UNITS.containsKey(preferenceValue)) {
-                result = context.getString(PRESSURE_UNITS.get(preferenceValue));
-            }
+    public static String localizeSpeedUnit(Preferences preferences, Resources resources) {
+        String speedUnit = preferences.getSpeedUnit();
+        if (SPEED_UNITS.containsKey(speedUnit)) {
+            return resources.getString(SPEED_UNITS.get(speedUnit));
+        } else {
+            Log.w("Formatting", "Unknown speed unit \"" + speedUnit + "\"");
+            return speedUnit;
         }
-        return result;
     }
 
-    public static String getWindDirectionString(SharedPreferences sp, Context context, Weather weather) {
+    public static String localizePressureUnit(Preferences preferences, Resources resources) {
+        String pressureUnit = preferences.getPressureUnit();
+        if (PRESSURE_UNITS.containsKey(pressureUnit)) {
+            return resources.getString(PRESSURE_UNITS.get(pressureUnit));
+        } else {
+            Log.w("Formatting", "Unknown pressure unit \"" + pressureUnit + "\"");
+            return pressureUnit;
+        }
+    }
+
+    public static String getWindDirectionString(Preferences preferences, Resources resources, Weather weather) {
+        if (weather.getWindDirectionDegree() == null) {
+            return "";
+        }
+
         try {
-            if (Double.parseDouble(weather.getWind()) != 0) {
-                String pref = sp.getString("windDirectionFormat", null);
+            if (weather.getWind() != 0) {
+                String pref = preferences.getWindDirectionFormat();
                 if ("arrow".equals(pref)) {
-                    return weather.getWindDirection(8).getArrow(context);
+                    return weather.getWindDirection(8).getArrow(resources);
                 } else if ("abbr".equals(pref)) {
-                    return weather.getWindDirection().getLocalizedString(context);
+                    return weather.getWindDirection().getLocalizedString(resources);
                 }
             }
         } catch (Exception e) {
@@ -110,18 +123,19 @@ public class Formatting {
         return "";
     }
 
-    public static String formatTimeWithDayIfNotToday(Context context, long timeInMillis) {
+    // TODO: This is only used in one place
+    public static String formatTimeWithDayIfNotToday(long timeInMillis) {
         Calendar now = Calendar.getInstance();
-        Calendar lastCheckedCal = new GregorianCalendar();
-        lastCheckedCal.setTimeInMillis(timeInMillis);
+
         Date lastCheckedDate = new Date(timeInMillis);
-        String timeFormat = android.text.format.DateFormat.getTimeFormat(context).format(lastCheckedDate);
-        if (now.get(Calendar.YEAR) == lastCheckedCal.get(Calendar.YEAR) &&
-                now.get(Calendar.DAY_OF_YEAR) == lastCheckedCal.get(Calendar.DAY_OF_YEAR)) {
-            // Same day, only show time
-            return timeFormat;
+
+        Calendar lastCheckedCal = Calendar.getInstance();
+        lastCheckedCal.setTime(lastCheckedDate);
+
+        if (now.get(Calendar.YEAR) == lastCheckedCal.get(Calendar.YEAR) && now.get(Calendar.DAY_OF_YEAR) == lastCheckedCal.get(Calendar.DAY_OF_YEAR)) {
+            return DateFormat.getTimeInstance(DateFormat.SHORT).format(lastCheckedDate);
         } else {
-            return android.text.format.DateFormat.getDateFormat(context).format(lastCheckedDate) + " " + timeFormat;
+            return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(lastCheckedDate);
         }
     }
 }

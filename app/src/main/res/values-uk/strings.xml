@@ -33,7 +33,7 @@
     <string name="format_sunset">Захід сонця: %1$tR</string>
 
     <string name="last_update">Востаннє оновлено:\n%s</string>
-    <string name="last_update_widget">\nВостаннє оновлено: %s</string>
+    <string name="last_update_widget">Востаннє оновлено: %s</string>
 
     <string name="search_title">Пошук міста</string>
 
