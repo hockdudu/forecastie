@@ -1,21 +1,17 @@
 package cz.martykan.forecastie.widgets;
 
-import android.arch.lifecycle.LifecycleObserver;
-import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.Observer;
-import android.content.ContentResolver;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.net.Uri;
+import android.content.IntentFilter;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.google.android.apps.dashclock.api.DashClockExtension;
 import com.google.android.apps.dashclock.api.ExtensionData;
-
-import org.json.JSONObject;
 
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -23,35 +19,33 @@ import java.util.Date;
 
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.activities.SplashActivity;
-import cz.martykan.forecastie.database.AppDatabase;
-import cz.martykan.forecastie.database.CityDao;
-import cz.martykan.forecastie.database.CityRepository;
-import cz.martykan.forecastie.database.WeatherDao;
-import cz.martykan.forecastie.database.WeatherRepository;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
-import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.LiveResponse;
 import cz.martykan.forecastie.utils.Preferences;
 import cz.martykan.forecastie.utils.Response;
 import cz.martykan.forecastie.utils.UnitConverter;
 
 public class DashClockWeatherExtension extends DashClockExtension {
-    private static final Uri URI_BASE = Uri.parse("content://cz.martykan.forecastie.authority");
-    private static final String UPDATE_URI_PATH_SEGMENT = "dashclock/update";
-
-    private static final String PREFS_NAME = "DashClock";
-    private static final String CONFIGURATION_NAME = "cityId";
+    private static final String UPDATE_INTENT = "updated";
 
     private Preferences preferences;
+
+    private DashClockBroadcastReceiver broadcastReceiver;
+
     @Override
     protected void onInitialize(boolean isReconnect) {
         super.onInitialize(isReconnect);
 
-        // Watch for weather updates
-//        removeAllWatchContentUris();
-//        addWatchContentUris(new String[]{getUpdateUri().toString()});
+        if (broadcastReceiver != null) {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
+        }
+
         preferences = Preferences.getInstance(PreferenceManager.getDefaultSharedPreferences(this), getResources());
+
+        IntentFilter intentFilter = new IntentFilter(UPDATE_INTENT);
+        broadcastReceiver = new DashClockBroadcastReceiver();
+        LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver, intentFilter);
     }
 
     // TODO: Use common parser
@@ -59,7 +53,8 @@ public class DashClockWeatherExtension extends DashClockExtension {
     protected void onUpdateData(int reason) {
         Log.v("DC-WeatherExtension", "Data update requested, reason: " + reason);
 
-        int cityId = getCityid(this, 0);
+        // TODO: Add check if 0
+        int cityId = AbstractWidgetProvider.getCityId(this, 0, 0);
         LiveResponse<City> cityLiveResponse = WidgetDataRepository.getCityRepository(this).getCity(cityId);
         cityLiveResponse.getLiveData().observeForever(new Observer<City>() {
             @Override
@@ -104,28 +99,23 @@ public class DashClockWeatherExtension extends DashClockExtension {
         });
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (broadcastReceiver != null) {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver);
+        }
+    }
+
     public static void updateDashClock(Context context) {
-        // TODO: Disabled for the time being, as this might code be unnecessary, but thorough analysis is needed
-//        ContentResolver contentResolver = context.getContentResolver();
-//        contentResolver.notifyChange(getUpdateUri(), null);
+        LocalBroadcastManager.getInstance(context).sendBroadcast(new Intent(UPDATE_INTENT));
     }
 
-    private static Uri getUpdateUri() {
-        return Uri.withAppendedPath(URI_BASE, UPDATE_URI_PATH_SEGMENT);
-    }
+    private class DashClockBroadcastReceiver extends BroadcastReceiver {
 
-    public static void saveCityId(Context context, int cityId) {
-        SharedPreferences.Editor editor = getSharedPreferences(context).edit();
-        editor.putInt(CONFIGURATION_NAME, cityId);
-        editor.apply();
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            onUpdateData(UPDATE_REASON_MANUAL);
+        }
     }
-
-    public static int getCityid(Context context, int defaultValue) {
-        return getSharedPreferences(context).getInt(CONFIGURATION_NAME, defaultValue);
-    }
-
-    protected static SharedPreferences getSharedPreferences(Context context) {
-        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-    }
-
 }

@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 8,
-    "identityHash": "7feecb4ee89a53ff5dd973ede87828d2",
+    "version": 10,
+    "identityHash": "76a17d5534ad7ac5cc015d95fd617831",
     "entities": [
       {
         "tableName": "City",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `city` TEXT, `country` TEXT, `lat` REAL NOT NULL, `lon` REAL NOT NULL, `currentWeatherId` INTEGER, `cityUsage` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`currentWeatherId`) REFERENCES `Weather`(`uid`) ON UPDATE CASCADE ON DELETE RESTRICT )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `city` TEXT, `country` TEXT, `lat` REAL NOT NULL, `lon` REAL NOT NULL, `currentWeatherId` INTEGER, `cityUsage` INTEGER NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`currentWeatherId`) REFERENCES `Weather`(`uid`) ON UPDATE CASCADE ON DELETE RESTRICT )",
         "fields": [
           {
             "fieldPath": "id",
@@ -48,7 +48,7 @@
             "fieldPath": "cityUsage",
             "columnName": "cityUsage",
             "affinity": "INTEGER",
-            "notNull": false
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -209,7 +209,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, \"7feecb4ee89a53ff5dd973ede87828d2\")"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, \"76a17d5534ad7ac5cc015d95fd617831\")"
     ]
   }
 }

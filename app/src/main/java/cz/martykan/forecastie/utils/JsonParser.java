@@ -49,7 +49,7 @@ public class JsonParser {
     }
 
     @NonNull
-    public static Weather convertJsonToWeather(JSONObject weatherObject, City city, Resources resources) {
+    public static Weather convertJsonToWeather(JSONObject weatherObject, City city) {
         Weather weather = new Weather();
 
         try {
@@ -106,6 +106,28 @@ public class JsonParser {
         return weather;
     }
 
+    public static Weather[] convertJsonToWeathers(JSONObject weathersObject) {
+        Weather[] weathers;
+
+        try {
+            JSONArray array = weathersObject.getJSONArray("list");
+            weathers = new Weather[array.length()];
+
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject weatherObject = (JSONObject) array.get(i);
+
+                City city = convertJsonToCity(weatherObject);
+                Weather weather = convertJsonToWeather(weatherObject, city);
+                weathers[i] = weather;
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            weathers = new Weather[0];
+        }
+
+        return weathers;
+    }
+
     private static double getRain(JSONObject rainObj) {
         double rain = 0;
         if (rainObj != null) {
@@ -117,7 +139,7 @@ public class JsonParser {
         return rain;
     }
 
-    public static List<Weather> convertJsonToForecast(JSONObject jsonObject, City city, Resources resources) {
+    public static List<Weather> convertJsonToForecast(JSONObject jsonObject, City city) {
         List<Weather> weatherList = new ArrayList<>();
 
         try {
@@ -125,7 +147,7 @@ public class JsonParser {
 
             for (int i = 0; i < weathers.length(); i++) {
                 JSONObject weathersJSONObject = weathers.getJSONObject(i);
-                Weather weather = convertJsonToWeather(weathersJSONObject, city, resources);
+                Weather weather = convertJsonToWeather(weathersJSONObject, city);
                 weatherList.add(weather);
             }
 

@@ -24,6 +24,7 @@ import cz.martykan.forecastie.widgets.AbstractWidgetProvider;
 public class WidgetConfigureActivity extends AppCompatActivity {
 
     protected int appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
+    protected CityRepository cityRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +41,8 @@ public class WidgetConfigureActivity extends AppCompatActivity {
             finish();
             return;
         }
+
+        cityRepository = new CityRepository(AppDatabase.getDatabase(this).cityDao(), this);
 
         Spinner citySpinner = findViewById(R.id.citySpinner);
         Button okButton = findViewById(R.id.buttonOk);
@@ -76,7 +79,13 @@ public class WidgetConfigureActivity extends AppCompatActivity {
             if (cities != null) {
                 if (selectedCityIndex != AdapterView.INVALID_POSITION) {
                     City selectedCity = cities.get(selectedCityIndex);
+                    selectedCity.setCityUsage(selectedCity.getCityUsage() | City.USAGE_WIDGET);
+
                     onWidgetConfigured(selectedCity);
+
+                    Runnable runnable = () -> cityRepository.persistCity(selectedCity);
+
+                    new Thread(runnable).start();
                 }
                 // TODO: What to do if there's no city (it's empty)?
             }

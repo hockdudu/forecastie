@@ -28,8 +28,49 @@ public class CityRepository extends AbstractRepository {
         this.cityDao = cityDao;
     }
 
+    /**
+     * Persists the given City on the database, updating existing and inserting new cities
+     *
+     * @param city The city to persist
+     */
     public void persistCity(City city) {
-        cityDao.insertAll(city);
+        appDatabase.runInTransaction(() -> {
+            boolean cityExists = cityDao.findById(city.getId()) != null;
+            if (cityExists) {
+                cityDao.persist(city);
+            } else {
+                cityDao.insertAll(city);
+            }
+        });
+    }
+
+    /**
+     * Persists the given City as the new current location. If there's an older current location set
+     * and it isn't used anywhere else, it'll be deleted.
+     *
+     * @param city The city to persist
+     */
+    public void persistCurrentLocation(City city) {
+        appDatabase.runInTransaction(() -> {
+            City currentLocation = cityDao.findCurrentLocation();
+            if (currentLocation != null && currentLocation.getId() != city.getId()) {
+                int newCurrentUsage = currentLocation.getCityUsage() & ~City.USAGE_CURRENT_LOCATION;
+                if (newCurrentUsage == 0) {
+                    cityDao.delete(currentLocation);
+                } else {
+                    currentLocation.setCityUsage(newCurrentUsage);
+                    cityDao.persist(currentLocation);
+                }
+            }
+
+            city.setCityUsage(city.getCityUsage() | City.USAGE_CURRENT_LOCATION);
+
+            if (cityDao.findById(city.getId()) != null) {
+                cityDao.persist(city);
+            } else {
+                cityDao.insertAll(city);
+            }
+        });
     }
 
     public LiveResponse<List<Weather>> searchCity(String cityName) {
@@ -59,7 +100,7 @@ public class CityRepository extends AbstractRepository {
                 for (int i = 0; i < cityList.length(); i++) {
                     JSONObject cityJSONObject = cityList.getJSONObject(i);
                     City city = JsonParser.convertJsonToCity(cityJSONObject);
-                    Weather weather = JsonParser.convertJsonToWeather(cityJSONObject, city, resources);
+                    Weather weather = JsonParser.convertJsonToWeather(cityJSONObject, city);
 
                     weathers.add(weather);
                 }
@@ -115,6 +156,44 @@ public class CityRepository extends AbstractRepository {
         return cityLiveResponse;
     }
 
+    public void unsetCityAsWidget(int cityId) {
+        City city = cityDao.findById(cityId);
+
+        if (city != null) {
+            int newCityUsage = city.getCityUsage() & ~City.USAGE_WIDGET;
+
+            if (newCityUsage != 0) {
+                city.setCityUsage(newCityUsage);
+                cityDao.persist(city);
+            } else {
+                cityDao.delete(city);
+            }
+        }
+    }
+
+    // TODO: Delete this if isn't needed
+    public LiveResponse<City> getCurrentLocation() {
+        LiveResponse<City> cityLiveResponse = new LiveResponse<>();
+        MutableLiveData<City> cityLiveData = new MutableLiveData<>();
+        cityLiveResponse.setLiveData(cityLiveData);
+
+        Runnable runnable = () -> {
+            City city = cityDao.findCurrentLocation();
+
+            if (city != null) {
+                cityLiveResponse.setStatus(Response.Status.SUCCESS);
+            } else {
+                cityLiveResponse.setStatus(Response.Status.CITY_NOT_FOUND);
+            }
+
+            cityLiveData.postValue(city);
+        };
+
+        new Thread(runnable).start();
+
+        return cityLiveResponse;
+    }
+
     public LiveResponse<List<City>> getCities() {
         LiveResponse<List<City>> cityLiveResponse = new LiveResponse<>();
         MutableLiveData<List<City>> citiesLiveData = new MutableLiveData<>();
@@ -153,7 +232,6 @@ public class CityRepository extends AbstractRepository {
             }
 
             cityLiveData.postValue(city);
-
         };
 
         new Thread(runnable).start();

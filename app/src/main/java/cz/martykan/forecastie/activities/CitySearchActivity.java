@@ -99,6 +99,7 @@ public class CitySearchActivity extends BaseActivity implements SearchView.OnQue
             assert weathers != null;
             Log.i("CitySearch", String.format("Response for search for \"%s\" arrived, length: %d", query, weathers.size()));
 
+            // TODO: What if the list is empty?
             recyclerAdapter.replaceList(weathers);
             citiesRecyclerView.scrollToPosition(0);
         });

@@ -24,10 +24,12 @@ import cz.martykan.forecastie.utils.Response;
 public abstract class AbstractRepository {
     protected Resources resources;
     protected SharedPreferences sharedPreferences;
+    protected AppDatabase appDatabase;
 
     AbstractRepository(Context context) {
         this.resources = context.getResources();
         this.sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        this.appDatabase = AppDatabase.getDatabase(context);
     }
 
     @SuppressWarnings("WeakerAccess")

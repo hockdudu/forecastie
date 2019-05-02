@@ -1,16 +1,13 @@
 package cz.martykan.forecastie.activities;
 
-import java.util.Arrays;
-import java.util.List;
-
 import cz.martykan.forecastie.models.City;
-import cz.martykan.forecastie.widgets.DashClockWeatherExtension;
+import cz.martykan.forecastie.widgets.AbstractWidgetProvider;
 
 public class WidgetDashClockConfigureActivity extends WidgetConfigureActivity {
 
     @Override
     protected void onWidgetConfigured(City city) {
-        DashClockWeatherExtension.saveCityId(this, city.getId());
+        AbstractWidgetProvider.saveCityId(this, 0, city.getId());
         finish();
     }
 
@@ -23,7 +20,7 @@ public class WidgetDashClockConfigureActivity extends WidgetConfigureActivity {
 
     @Override
     protected int getCityIndex(int[] cityIds) {
-        int cityId = DashClockWeatherExtension.getCityid(this, 0);
+        int cityId = AbstractWidgetProvider.getCityId(this, 0, 0);
         int index = 0;
 
         for (int i = 0; i < cityIds.length; i++) {

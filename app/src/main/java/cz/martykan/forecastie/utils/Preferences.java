@@ -99,8 +99,8 @@ public class Preferences {
         return sp.getString("apiKey", res.getString(R.string.apiKey));
     }
 
-    public void updateLocationInBackground() {
-
+    public boolean updateLocationInBackground() {
+        return sp.getBoolean("updateLocationAutomatically", false);
     }
 
     //------//

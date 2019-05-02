@@ -44,12 +44,13 @@
     <string name="my_locations">My locations</string>
     <string name="city_deleted">City deleted</string>
     <string name="delete_city">Delete city</string>
+    <string name="current_location">Current location</string>
     <string name="undo">Undo</string>
 
-    <string name="downloading_data">Downloading your data ...</string>
-    <string name="getting_location">Getting your location ...</string>
+    <string name="downloading_data">Downloading your data…</string>
+    <string name="getting_location">Getting your location…</string>
 
-    <string name="loading_data">Loading...</string>
+    <string name="loading_data">Loading…</string>
 
     <string name="error_dateFormat">DATE FORMAT ERROR</string>
 

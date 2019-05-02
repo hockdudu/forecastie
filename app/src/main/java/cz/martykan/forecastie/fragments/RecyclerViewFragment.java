@@ -15,11 +15,6 @@ import cz.martykan.forecastie.R;
 
 public class RecyclerViewFragment extends Fragment {
 
-
-    public RecyclerViewFragment() {
-    }
-
-
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -33,5 +28,4 @@ public class RecyclerViewFragment extends Fragment {
         recyclerView.setAdapter(mainActivity.getAdapter(bundle.getInt("day")));
         return view;
     }
-
 }

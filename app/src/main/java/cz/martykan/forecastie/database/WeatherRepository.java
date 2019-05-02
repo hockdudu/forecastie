@@ -9,6 +9,7 @@ import org.json.JSONObject;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
@@ -60,7 +61,7 @@ public class WeatherRepository extends AbstractRepository {
 
                     try {
                         JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
-                        downloadedWeather = JsonParser.convertJsonToWeather(jsonObject, city, resources);
+                        downloadedWeather = JsonParser.convertJsonToWeather(jsonObject, city);
 
                         JSONObject uvJsonObject = new JSONObject(uvResponse.getDataString());
                         double currentUVIndex = JsonParser.convertJsonToUVIndex(uvJsonObject);
@@ -72,6 +73,14 @@ public class WeatherRepository extends AbstractRepository {
                     }
 
                     if (downloadedWeather != null) {
+                        // TODO: Fix SQL Exception!
+                        /*
+                        What might happen: The downloaded weather is given a city, but the city is
+                        deleted right before inserting it (on another thread). Again, this happens
+                        mostly when opening the app on a new location. The app requests the current
+                        weather, it's downloaded but at the same time there's a new location, so the
+                        old one is deleted
+                         */
                         long id = weatherDao.insertAll(downloadedWeather)[0];
                         downloadedWeather.setUid(id);
                         city.setCurrentWeatherId(id);
@@ -106,6 +115,68 @@ public class WeatherRepository extends AbstractRepository {
         return weatherLiveResponse;
     }
 
+    // TODO: Use this in more places
+    public LiveResponse<List<Weather>> getCurrentWeathers(List<City> cities, boolean forceDownload) {
+        LiveResponse<List<Weather>> weathersLiveResponse = new LiveResponse<>();
+        MutableLiveData<List<Weather>> weathersLiveData = new MutableLiveData<>();
+        weathersLiveResponse.setLiveData(weathersLiveData);
+
+        Runnable runnable = () -> {
+            List<City> outdatedCities;
+            List<Weather> currentWeathers = new ArrayList<>();
+
+            if (forceDownload) {
+                outdatedCities = cities;
+            } else {
+                outdatedCities = new ArrayList<>();
+
+                for (City city : cities) {
+                    Weather currentWeather = null;
+
+                    if (city.getCurrentWeatherId() != null) {
+                        currentWeather = weatherDao.findByUid(city.getCurrentWeatherId());
+                    }
+
+                    if (currentWeather == null || isWeatherTooOld(currentWeather)) {
+                        outdatedCities.add(city);
+                    } else {
+                        currentWeathers.add(currentWeather);
+                    }
+                }
+            }
+
+            if (outdatedCities.size() != 0) {
+                URL[] urls = provideWeathersUrl(outdatedCities);
+
+                for (URL url : urls) {
+                    Response weathersResponse = downloadJson(url);
+
+                    if (weathersResponse.getStatus() != Response.Status.SUCCESS) {
+                        weathersLiveResponse.setResponse(weathersResponse);
+                        break;
+                    }
+
+                    try {
+                        // TODO: Update UV Index?
+                        JSONObject jsonObject = new JSONObject(weathersResponse.getDataString());
+                        Weather[] weathers = JsonParser.convertJsonToWeathers(jsonObject);
+                        currentWeathers.addAll(Arrays.asList(weathers));
+                    } catch (JSONException e) {
+                        weathersLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);
+                        e.printStackTrace();
+                        break;
+                    }
+                }
+            }
+
+            weathersLiveData.postValue(currentWeathers);
+        };
+
+        new Thread(runnable).start();
+
+        return weathersLiveResponse;
+    }
+
     public LiveResponse<List<Weather>> getWeatherForecast(City city, boolean forceDownload) {
         LiveResponse<List<Weather>> weatherLiveResponse = new LiveResponse<>();
         MutableLiveData<List<Weather>> weatherLiveData = new MutableLiveData<>();
@@ -137,7 +208,7 @@ public class WeatherRepository extends AbstractRepository {
                 if (weatherLiveResponse.getStatus() == Response.Status.SUCCESS) {
                     try {
                         JSONObject jsonObject = new JSONObject(weatherLiveResponse.getDataString());
-                        downloadedForecast = JsonParser.convertJsonToForecast(jsonObject, city, resources);
+                        downloadedForecast = JsonParser.convertJsonToForecast(jsonObject, city);
                     } catch (JSONException e) {
                         e.printStackTrace();
                         weatherLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);
@@ -160,6 +231,19 @@ public class WeatherRepository extends AbstractRepository {
                         location.
                          */
                         weatherDao.delete(weathers.toArray(new Weather[0]));
+
+                        /*
+                        SQL Exception, FOREIGN KEY constraint fails
+
+                        Now that's other problem: On current location, the cities might get deleted
+                        just like that. The city that was downloaded here has been deleted, because
+                        the current location updated.
+
+                        This can be fixed easily with a check in a transaction, yes, but: the waste
+                        of bandwidth isn't acceptable! But I'm still to find a way to solve this
+                        problem. Maybe add a delay to the current location? Or only update when the
+                        location update succeeds / fails
+                         */
                         weatherDao.insertAll(downloadedForecast.toArray(new Weather[0]));
                         weathers = downloadedForecast;
                     }
@@ -174,6 +258,31 @@ public class WeatherRepository extends AbstractRepository {
         new Thread(runnable).start();
 
         return weatherLiveResponse;
+    }
+
+    private URL[] provideWeathersUrl(List<City> cities) {
+        int numberOfGroupsOf20 = cities.size() / 20 + 1;
+        URL[] urls = new URL[numberOfGroupsOf20];
+
+        for (int i = 0; i < numberOfGroupsOf20; i++) {
+            HashMap<String, String> params = new HashMap<>();
+            StringBuilder stringBuilder = new StringBuilder();
+
+            int currentGroupIndexStart = 20 * i;
+            for (int j = currentGroupIndexStart; j < currentGroupIndexStart + 20 && j < cities.size(); j++) {
+                stringBuilder.append(cities.get(j).getId());
+                if (j != currentGroupIndexStart + 19 && j != cities.size() - 1) {
+                    stringBuilder.append(",");
+                }
+
+            }
+
+            params.put("id", stringBuilder.toString());
+
+            urls[i] = provideUrl("group", params);
+        }
+
+        return urls;
     }
 
     private URL provideWeatherUrl(City city) {

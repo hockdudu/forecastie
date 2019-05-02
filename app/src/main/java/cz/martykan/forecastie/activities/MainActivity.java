@@ -1,10 +1,8 @@
 package cz.martykan.forecastie.activities;
 
 import android.Manifest;
-import android.app.ProgressDialog;
 import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.PorterDuff;
@@ -14,6 +12,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -40,15 +39,22 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.work.Constraints;
+import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.NetworkType;
+import androidx.work.PeriodicWorkRequest;
+import androidx.work.WorkManager;
 
 import java.io.Serializable;
-import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.adapters.ViewPagerAdapter;
@@ -60,28 +66,24 @@ import cz.martykan.forecastie.fragments.AboutDialogFragment;
 import cz.martykan.forecastie.fragments.RecyclerViewFragment;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
+import cz.martykan.forecastie.utils.Formatting;
 import cz.martykan.forecastie.utils.LiveResponse;
 import cz.martykan.forecastie.utils.Preferences;
 import cz.martykan.forecastie.utils.Response;
 import cz.martykan.forecastie.utils.TextFormatting;
 import cz.martykan.forecastie.utils.UI;
-import cz.martykan.forecastie.utils.UnitConverter;
+import cz.martykan.forecastie.workers.WeatherWorker;
 
 public class MainActivity extends BaseActivity implements LocationListener {
     protected static final int MY_PERMISSIONS_ACCESS_FINE_LOCATION = 1;
-
-    // Time in milliseconds; only reload weather if last update is longer ago than this value
-    private static final int NO_UPDATE_REQUIRED_THRESHOLD = 300000;
 
     private static final int ACTIVITY_REQUEST_CITY_SELECTED = 1;
 
     @Nullable
     private Weather todayWeather;
     private List<Weather> forecast = Collections.emptyList();
-
     private Date tomorrow;
     private Date later;
-
     private TextView todayTemperature;
     private TextView todayDescription;
     private TextView todayWind;
@@ -97,18 +99,15 @@ public class MainActivity extends BaseActivity implements LocationListener {
     private SwipeRefreshLayout swipeRefreshLayout;
     private LinearLayout sidebarDrawer;
     private DrawerLayout drawerLayout;
-
     private View appView;
 
-    Typeface weatherFont;
+    private Typeface weatherFont;
 
     private LocationManager locationManager;
-    private ProgressDialog progressDialog;
 
     private boolean widgetTransparent;
-    private boolean destroyed = false;
 
-    public int recentCityId;
+    private int selectedCityId;
 
     private AppDatabase appDatabase;
     private WeatherRepository weatherRepository;
@@ -118,12 +117,15 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // TODO: Maybe initialize SharedPreferences on parent class?
         // Initialize the associated SharedPreferences file with default values
         PreferenceManager.setDefaultValues(this, R.xml.prefs, false);
 
         super.onCreate(savedInstanceState);
 
         preferences = Preferences.getInstance(prefs, this.getResources());
+
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         // TODO: Why is it needed here?
         widgetTransparent = prefs.getBoolean("transparentWidget", false);
@@ -132,9 +134,6 @@ public class MainActivity extends BaseActivity implements LocationListener {
         appView = findViewById(R.id.viewApp);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         AppBarLayout appBarLayout = findViewById(R.id.appBarLayout);
-
-        // TODO: IT HURTS, PLEASE USE SOMETHING ELSE, ANYTHING BUT THIS
-        progressDialog = new ProgressDialog(MainActivity.this);
 
         // Load toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -175,11 +174,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
         viewPager = findViewById(R.id.viewPager);
         tabLayout = findViewById(R.id.tabs);
 
-        destroyed = false;
-        recentCityId = preferences.getLastCityId();
-
-        // Preload data from cache
-        refreshWeather();
+        selectedCityId = preferences.getLastCityId();
 
         // Initializes drawer
         LinearLayout drawerContainer = findViewById(R.id.drawerContainer);
@@ -187,8 +182,16 @@ public class MainActivity extends BaseActivity implements LocationListener {
         initializeDrawer();
 
         // Set autoupdater
-        // TODO: Use WorkManager (https://developer.android.com/topic/libraries/architecture/workmanager)
-//        AlarmReceiver.setRecurringAlarm(this);
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.NOT_ROAMING)
+                .build();
+
+        PeriodicWorkRequest workRequest = new PeriodicWorkRequest.Builder(WeatherWorker.class, Formatting.getRefreshIntervalInMinutes(preferences), TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .build();
+
+        WorkManager.getInstance().enqueueUniquePeriodicWork("Weather", ExistingPeriodicWorkPolicy.REPLACE, workRequest);
+
 
         swipeRefreshLayout.setOnRefreshListener(this::downloadWeather);
 
@@ -196,31 +199,11 @@ public class MainActivity extends BaseActivity implements LocationListener {
             // Only allow pull to refresh when scrolled to top
             swipeRefreshLayout.setEnabled(verticalOffset == 0);
         });
-
-        Bundle bundle = getIntent().getExtras();
-
-        if (bundle != null && bundle.getBoolean("shouldRefresh")) {
-            refreshWeather();
-        }
-    }
-
-    public WeatherRecyclerAdapter getAdapter(int id) {
-        WeatherRecyclerAdapter weatherRecyclerAdapter;
-        if (id == 0) {
-            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastToday());
-        } else if (id == 1) {
-            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastTomorrow());
-        } else {
-            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastLater());
-        }
-        return weatherRecyclerAdapter;
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        updateWeatherUI();
-        updateForecastUI();
 
         Calendar today = Calendar.getInstance();
         today.set(Calendar.HOUR_OF_DAY, 0);
@@ -235,6 +218,8 @@ public class MainActivity extends BaseActivity implements LocationListener {
         Calendar later = (Calendar) today.clone();
         later.add(Calendar.DAY_OF_YEAR, 2);
         this.later = later.getTime();
+
+        updateCurrentLocation();
     }
 
     @Override
@@ -246,15 +231,14 @@ public class MainActivity extends BaseActivity implements LocationListener {
             finish();
             overridePendingTransition(0, 0);
             startActivity(getIntent());
-        } else if (shouldUpdate()) {
-            refreshWeather();
         }
+
+        refreshWeather();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        destroyed = true;
 
         if (locationManager != null) {
             try {
@@ -269,27 +253,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        switch (requestCode) {
-            case ACTIVITY_REQUEST_CITY_SELECTED:
-                switch (resultCode) {
-                    case CitySearchActivity.ACTIVITY_RESULT_CITY_SELECTED:
-                        Handler handler = new Handler();
-
-                        Runnable runnable = () -> {
-                            Weather weather = (Weather) data.getSerializableExtra("weather");
-                            handler.post(() -> {
-                                saveLocation(weather.getCity(), () -> {
-                                    refreshDrawer();
-                                    refreshWeather();
-                                });
-                            });
-                        };
-
-                        new Thread(runnable).start();
-
-                        break;
-                }
-                break;
+        if (requestCode == ACTIVITY_REQUEST_CITY_SELECTED && resultCode == CitySearchActivity.ACTIVITY_RESULT_CITY_SELECTED) {
+            Weather weather = (Weather) data.getSerializableExtra("weather");
+            weather.getCity().setCityUsage(weather.getCity().getCityUsage() | City.USAGE_USER);
+            persistLocation(weather.getCity(), false, true);
         }
     }
 
@@ -314,12 +281,29 @@ public class MainActivity extends BaseActivity implements LocationListener {
         citiesLiveData.getLiveData().observe(this, cities -> {
             assert cities != null;
 
-            // TODO: Add "current location" support
             LinearLayout citiesList = sidebarDrawer.findViewById(R.id.citiesList);
             citiesList.removeAllViews();
-            Collections.sort(cities, (o1, o2) -> o1.getCity().compareTo(o2.getCity()));
+
+            Collections.sort(cities, (o1, o2) -> {
+                if ((o1.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION) {
+                    if ((o2.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION) {
+                        Log.w("MainActivity", "Multiple current locations found");
+                        return o1.getCity().compareTo(o2.getCity());
+                    }
+
+                    return -1;
+                } else if ((o2.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION) {
+                    return 1;
+                } else {
+                    return o1.getCity().compareTo(o2.getCity());
+                }
+            });
+
             for (int i = 0; i < cities.size(); i++) {
                 City city = cities.get(i);
+                // TODO: Maybe a method on city could be added
+                boolean isCityCurrentLocation = (city.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION;
+
                 ConstraintLayout drawerItem = (ConstraintLayout) getLayoutInflater().inflate(R.layout.fragment_drawer_item, citiesList, false);
                 citiesList.addView(drawerItem);
 
@@ -330,67 +314,77 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 cityName.setText(city.toString());
 
                 ImageView removeButton = drawerItem.findViewById(R.id.removeLocationIcon);
-                // TODO: Is there any other way of getting this color?
-                removeButton.setColorFilter(weatherIcon.getCurrentTextColor(), PorterDuff.Mode.SRC_IN);
-                removeButton.setOnClickListener(removeButtonView -> {
-                    drawerLayout.closeDrawers();
 
-                    Handler handler = new Handler();
+                if (isCityCurrentLocation) {
+                    ImageView currentLocation = drawerItem.findViewById(R.id.currentLocationIcon);
+                    currentLocation.setColorFilter(weatherIcon.getCurrentTextColor(), PorterDuff.Mode.SRC_IN);
+                    currentLocation.setVisibility(View.VISIBLE);
+                    removeButton.setVisibility(View.INVISIBLE);
+                } else {
+                    // TODO: Is there any other way of getting this color?
+                    removeButton.setColorFilter(weatherIcon.getCurrentTextColor(), PorterDuff.Mode.SRC_IN);
+                    removeButton.setOnClickListener(removeButtonView -> {
+                        drawerLayout.closeDrawers();
 
-                    // TODO: You shouldn't access DAOs directly, use repositories for that
-                    // TODO: Select other city when current city is deleted
-                    Runnable runnable = () -> {
-                        Log.i("CityDeletion", String.format("City deleted: %s (%d)", city, city.getId()));
+                        Handler handler = new Handler();
 
-                        Weather cityWeather;
-                        List<Weather> cityForecast;
-                        if (city.getCurrentWeatherId() != null) {
-                            cityWeather = appDatabase.weatherDao().findByUid(city.getCurrentWeatherId());
-                            cityForecast = appDatabase.weatherDao().findForecast(city.getId(), city.getCurrentWeatherId());
-                        } else {
-                            cityWeather = null;
-                            cityForecast = appDatabase.weatherDao().findForecast(city.getId(), 0);
-                        }
+                        // TODO: You shouldn't access DAOs directly, use repositories for that
+                        // TODO: Select other city when current city is deleted
+                        Runnable runnable = () -> {
+                            Log.i("CityDeletion", String.format("City deleted: %s (%d)", city, city.getId()));
 
-                        cityRepository.deleteCity(city);
+                            Weather cityWeather;
+                            List<Weather> cityForecast;
+                            if (city.getCurrentWeatherId() != null) {
+                                cityWeather = appDatabase.weatherDao().findByUid(city.getCurrentWeatherId());
+                                cityForecast = appDatabase.weatherDao().findForecast(city.getId(), city.getCurrentWeatherId());
+                            } else {
+                                cityWeather = null;
+                                cityForecast = appDatabase.weatherDao().findForecast(city.getId(), 0);
+                            }
 
-                        Snackbar snackbar = Snackbar.make(appView, R.string.city_deleted, Snackbar.LENGTH_LONG);
-                        snackbar.setAction(R.string.undo, snackView -> {
-                            // This action is called on the UI, so we need another runnable :P
-                            Runnable runnable1 = () -> {
-                                appDatabase.runInTransaction(() -> {
-                                    city.setCurrentWeatherId(null);
-                                    cityRepository.persistCity(city);
+                            cityRepository.deleteCity(city);
 
-                                    if (cityWeather != null) {
-                                        // TODO: Test if this reworked code works
-                                        weatherRepository.persistWeathers(cityWeather);
-                                        city.setCurrentWeatherId(cityWeather.getUid());
+                            Snackbar snackbar = Snackbar.make(appView, R.string.city_deleted, Snackbar.LENGTH_LONG);
+                            snackbar.setAction(R.string.undo, snackView -> {
+                                // This action is called on the UI, so we need another runnable :P
+                                Runnable runnable1 = () -> {
+                                    appDatabase.runInTransaction(() -> {
+                                        city.setCurrentWeatherId(null);
                                         cityRepository.persistCity(city);
+
+                                        if (cityWeather != null) {
+                                            // TODO: Test if this reworked code works
+                                            weatherRepository.persistWeathers(cityWeather);
+                                            city.setCurrentWeatherId(cityWeather.getUid());
+                                            cityRepository.persistCity(city);
 
 //                                        appDatabase.weatherDao().insertAll(cityWeather);
 //                                        city.setCurrentWeatherId(cityWeather.getUid());
 //                                        appDatabase.cityDao().persist(city);
-                                    }
+                                        }
 
-                                    appDatabase.weatherDao().insertAll(cityForecast.toArray(new Weather[0]));
+                                        appDatabase.weatherDao().insertAll(cityForecast.toArray(new Weather[0]));
 
-                                    handler.post(this::refreshDrawer);
-                                });
-                            };
+                                        // TODO: This doesn't work
+                                        handler.post(this::refreshDrawer);
+                                    });
+                                };
 
-                            new Thread(runnable1).start();
-                        });
+                                new Thread(runnable1).start();
+                            });
 
-                        handler.post(() -> {
-                            refreshDrawer();
-                            snackbar.show();
-                        });
+                            handler.post(() -> {
+                                refreshDrawer();
+                                snackbar.show();
+                            });
 
-                    };
+                        };
 
-                    new Thread(runnable).start();
-                });
+                        new Thread(runnable).start();
+                    });
+                }
+
 
                 TextView temperature = drawerItem.findViewById(R.id.temperature);
 
@@ -416,7 +410,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     private void updateTodayWeather(boolean forceDownload, Runnable onFinish) {
-        LiveResponse<City> currentCity = cityRepository.getCity(recentCityId);
+        LiveResponse<City> currentCity = cityRepository.getCity(selectedCityId);
 
         currentCity.getLiveData().observe(this, city -> {
             if (handleConnectionStatus(currentCity.getStatus())) {
@@ -438,7 +432,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     private void updateForecast(boolean forceDownload, Runnable onFinish) {
-        LiveResponse<City> currentCity = cityRepository.getCity(recentCityId);
+        LiveResponse<City> currentCity = cityRepository.getCity(selectedCityId);
         currentCity.getLiveData().observe(this, city -> {
             if (handleConnectionStatus(currentCity.getStatus())) {
                 LiveResponse<List<Weather>> forecastLiveData = weatherRepository.getWeatherForecast(city, forceDownload);
@@ -461,23 +455,24 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     private void selectLocation(City city) {
-        recentCityId = city.getId();
-
+        selectedCityId = city.getId();
         preferences.setLastCityId(city.getId());
     }
 
-    private void saveLocation(City city) {
-        saveLocation(city, null);
-    }
-
-    private void saveLocation(City city, Runnable onFinish) {
-        selectLocation(city);
+    private void persistLocation(City city, boolean asCurrentLocation, boolean updateSelectedLocation) {
+        if (updateSelectedLocation) {
+            selectLocation(city);
+        }
 
         Handler handler = new Handler();
         Runnable runnable = () -> {
-            cityRepository.persistCity(city);
+            if (asCurrentLocation) {
+                cityRepository.persistCurrentLocation(city);
+            } else {
+                cityRepository.persistCity(city);
+            }
 
-            handler.post(onFinish);
+            handler.post(this::refreshWeather);
         };
 
         new Thread(runnable).start();
@@ -487,26 +482,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
         new AboutDialogFragment().show(getSupportFragmentManager(), null);
     }
 
-    // TODO: Check why this is called twice
     private void updateWeatherUI() {
-        if (todayWeather == null) { // If it wasn't initialized yet
-            refreshWeather();
-            return;
-        }
+        assert todayWeather != null;
 
-        // TODO: Verify why this isn't used now resp. how it was used before
-        DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(getApplicationContext());
-        // TODO: Fix inspection
-        //noinspection ConstantConditions
-        getSupportActionBar().setTitle(todayWeather.getCity().toString());
-
-        // Temperature
-        double temperature = UnitConverter.convertTemperature(todayWeather.getTemperature(), preferences);
-        if (preferences.isTemperatureInteger()) {
-            temperature = Math.round(temperature);
-        }
-
-        // Rain
+        Objects.requireNonNull(getSupportActionBar()).setTitle(todayWeather.getCity().toString());
 
         todayTemperature.setText(TextFormatting.getTemperature(getResources(), preferences, todayWeather));
         todayDescription.setText(TextFormatting.getDescription(getResources(), preferences, todayWeather));
@@ -527,10 +506,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     private void updateForecastUI() {
-        if (destroyed) {
-            return;
-        }
-
+        // TODO: Can't we simply recycle existing adapters? It feels bad doing this like that
         ViewPagerAdapter viewPagerAdapter = new ViewPagerAdapter(getSupportFragmentManager());
 
         Bundle bundleToday = new Bundle();
@@ -563,20 +539,22 @@ public class MainActivity extends BaseActivity implements LocationListener {
         viewPager.setCurrentItem(currentPage, false);
     }
 
-    private boolean isNetworkAvailable() {
-        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    public WeatherRecyclerAdapter getAdapter(int id) {
+        WeatherRecyclerAdapter weatherRecyclerAdapter;
+        if (id == 0) {
+            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastToday());
+        } else if (id == 1) {
+            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastTomorrow());
+        } else {
+            weatherRecyclerAdapter = new WeatherRecyclerAdapter(this, getForecastLater());
+        }
+        return weatherRecyclerAdapter;
     }
 
-    private boolean shouldUpdate() {
-        long lastUpdate = -1;
-        if (todayWeather != null) {
-            lastUpdate = todayWeather.getLastUpdated();
-        }
-        boolean cityChanged = prefs.getBoolean("cityChanged", false);
-        // Update if never checked or las"t update is longer ago than specified threshold
-        return cityChanged || lastUpdate < 0 || (Calendar.getInstance().getTimeInMillis() - lastUpdate) > NO_UPDATE_REQUIRED_THRESHOLD;
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) Objects.requireNonNull(getSystemService(Context.CONNECTIVITY_SERVICE));
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
     @Override
@@ -640,7 +618,10 @@ public class MainActivity extends BaseActivity implements LocationListener {
         updateForecast(forceDownload, updateFinishCountValue);
 
         finishCount.observe(this, value -> {
-            if (value != null && value == 2) swipeRefreshLayout.setRefreshing(false);
+            if (value != null && value == 2) {
+                swipeRefreshLayout.setRefreshing(false);
+                refreshDrawer();
+            }
         });
     }
 
@@ -653,41 +634,40 @@ public class MainActivity extends BaseActivity implements LocationListener {
         }
     }
 
-    void getCityByLocation() {
+    private boolean updateCurrentLocation() {
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.ACCESS_FINE_LOCATION)) {
-                // Explanation not needed, since user requests this themmself
+            return false;
+        }
 
-            } else {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                        MY_PERMISSIONS_ACCESS_FINE_LOCATION);
-            }
-
-        } else if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            progressDialog = new ProgressDialog(this);
-            progressDialog.setMessage(getString(R.string.getting_location));
-            progressDialog.setCancelable(false);
-            progressDialog.setButton(DialogInterface.BUTTON_NEGATIVE, getString(R.string.dialog_cancel), (dialogInterface, i) -> {
-                try {
-                    locationManager.removeUpdates(MainActivity.this);
-                } catch (SecurityException e) {
-                    e.printStackTrace();
-                }
-            });
-            progressDialog.show();
-            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
-            }
-            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
-            }
+        // TODO: Can't we use requestSingleUpdate here?
+        if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, this);
+        } else if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         } else {
-            showLocationSettingsDialog();
+            return false;
+        }
+
+        return true;
+    }
+
+    void getCityByLocation() {
+        // If couldn't update current location
+        if (!updateCurrentLocation()) {
+            if (!locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) && !locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                showLocationSettingsDialog();
+            } else {
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+                    // TODO: Show window explaining the need of GPS for detecting current location
+                    Toast.makeText(this, "OBEY, RESISTANCE IS FUTILE", Toast.LENGTH_LONG).show();
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_ACCESS_FINE_LOCATION);
+                } else {
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, MY_PERMISSIONS_ACCESS_FINE_LOCATION);
+                }
+            }
+
         }
     }
 
@@ -705,22 +685,36 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case MY_PERMISSIONS_ACCESS_FINE_LOCATION: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == MY_PERMISSIONS_ACCESS_FINE_LOCATION) {
+            // If request wasn't cancelled
+            if (grantResults.length > 0) {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     getCityByLocation();
+                } else {
+                    // If user checked "Never ask again"
+                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(this);
+                        alertDialog.setTitle(R.string.location_settings);
+                        alertDialog.setMessage("FU");
+                        alertDialog.setPositiveButton(R.string.location_settings_button, (dialog, which) -> {
+                            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            intent.setData(Uri.fromParts("package", this.getPackageName(), null));
+                            startActivity(intent);
+                        });
+                        alertDialog.setNegativeButton(R.string.dialog_cancel, ((dialog, which) -> dialog.cancel()));
+                        alertDialog.show();
+                    } else {
+                        Toast.makeText(this, "Location permission is required", Toast.LENGTH_LONG).show();
+                    }
                 }
-                break;
+            } else {
+                // Request is cancelled
             }
         }
     }
 
-    // TODO: Plan a way of deleting old cities
-    // TODO: Don't change the location in view if it isn't a live location
     @Override
     public void onLocationChanged(Location location) {
-        progressDialog.hide();
         try {
             locationManager.removeUpdates(this);
         } catch (SecurityException e) {
@@ -731,8 +725,13 @@ public class MainActivity extends BaseActivity implements LocationListener {
         LiveResponse<City> cityLiveData = cityRepository.findCity(location);
 
         cityLiveData.getLiveData().observe(this, city -> {
-            assert city != null;
-            saveLocation(city);
+            if (cityLiveData.getStatus() == Response.Status.SUCCESS) {
+                assert city != null;
+
+                city.setCityUsage(city.getCityUsage() | City.USAGE_CURRENT_LOCATION);
+                // TODO: That's not enough, we need to know whether the user clicked the button or it was a background update
+                persistLocation(city, true, selectedCityId == city.getId());
+            }
         });
     }
 
@@ -768,7 +767,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
         for (Weather weather : forecast) {
             // The order is inverted for performance reasons, although it really might be negligible
-            // Natural order would be .equals(tomorrow) || .after(tomorrow) && .before(later)
+            // The "natural" order would be .equals(tomorrow) || .after(tomorrow) && .before(later)
             if (weather.getDate().before(later) && weather.getDate().after(tomorrow) || weather.getDate().equals(tomorrow)) {
                 weathers.add(weather);
             }

@@ -4,6 +4,7 @@ def supportLibVersion = '27.1.1'
 def lifecycleVersion = '1.1.1'
 def room_version = "1.1.1"
 def work_version = "1.0.1"
+def futures_version = "1.0.0-alpha02"
 
 android {
     compileSdkVersion 27
@@ -56,4 +57,5 @@ dependencies {
     implementation "android.arch.persistence.room:runtime:$room_version"
     annotationProcessor "android.arch.persistence.room:compiler:$room_version"
     implementation "android.arch.work:work-runtime:$work_version"
+    implementation "androidx.concurrent:concurrent-futures:$futures_version"
 }

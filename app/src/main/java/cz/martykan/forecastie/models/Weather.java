@@ -6,7 +6,6 @@ import android.arch.persistence.room.ForeignKey;
 import android.arch.persistence.room.Ignore;
 import android.arch.persistence.room.PrimaryKey;
 import android.arch.persistence.room.TypeConverters;
-import android.content.Context;
 import android.content.res.Resources;
 
 import java.io.Serializable;
@@ -17,7 +16,7 @@ import java.util.Date;
 import java.util.Locale;
 
 import cz.martykan.forecastie.R;
-import cz.martykan.forecastie.database.AppTypeConverter;
+import cz.martykan.forecastie.models.converters.DateConverter;
 
 @Entity(foreignKeys = {@ForeignKey(entity = City.class, childColumns = "cityId", parentColumns = "id", onUpdate = ForeignKey.CASCADE, onDelete = ForeignKey.CASCADE)})
 public class Weather implements Serializable {
@@ -28,7 +27,7 @@ public class Weather implements Serializable {
     private City city;
     @ColumnInfo(index = true)
     private int cityId;
-    @TypeConverters(AppTypeConverter.class)
+    @TypeConverters(DateConverter.class)
     private Date date;
     private double temperature;
     private String description;
@@ -39,9 +38,9 @@ public class Weather implements Serializable {
     private double rain;
     private String id;
     private long lastUpdated;
-    @TypeConverters(AppTypeConverter.class)
+    @TypeConverters(DateConverter.class)
     private Date sunrise;
-    @TypeConverters(AppTypeConverter.class)
+    @TypeConverters(DateConverter.class)
     private Date sunset;
     private double uvIndex;
 

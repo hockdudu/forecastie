@@ -1,7 +1,5 @@
 package cz.martykan.forecastie.utils;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.support.annotation.NonNull;
 import android.util.Log;
@@ -10,9 +8,9 @@ import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.models.Weather;
@@ -136,6 +134,18 @@ public class Formatting {
             return DateFormat.getTimeInstance(DateFormat.SHORT).format(lastCheckedDate);
         } else {
             return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(lastCheckedDate);
+        }
+    }
+
+    public static int getRefreshIntervalInMinutes(Preferences preferences) {
+        int preferenceSetting = preferences.getBackgroundRefreshInterval();
+
+        switch (preferenceSetting) {
+            case 15:
+            case 30:
+                return preferenceSetting;
+            default:
+                return (int) TimeUnit.HOURS.toMinutes(preferenceSetting);
         }
     }
 }

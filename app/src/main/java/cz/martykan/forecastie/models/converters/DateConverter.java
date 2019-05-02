@@ -1,12 +1,10 @@
-package cz.martykan.forecastie.database;
+package cz.martykan.forecastie.models.converters;
 
 import android.arch.persistence.room.TypeConverter;
 
 import java.util.Date;
 
-@SuppressWarnings("WeakerAccess")
-public class AppTypeConverter {
-
+public class DateConverter {
     @TypeConverter
     public static long fromDate(Date date) {
         if (date != null) {
