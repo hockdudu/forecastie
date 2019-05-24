@@ -21,6 +21,10 @@ import cz.martykan.forecastie.utils.LiveResponse;
 import cz.martykan.forecastie.utils.Response;
 
 public class CityRepository extends AbstractRepository {
+
+    public static final int CURRENT_CITY = 0;
+    public static final int INVALID_CITY = -1;
+
     private CityDao cityDao;
 
     public CityRepository(CityDao cityDao, Context context) {
@@ -121,6 +125,16 @@ public class CityRepository extends AbstractRepository {
     }
 
     public LiveResponse<City> getCity(int cityId) {
+        if (cityId == CURRENT_CITY) {
+            return getCurrentLocation();
+        }
+
+        if (cityId == INVALID_CITY) {
+            LiveResponse<City> liveResponse = new LiveResponse<>();
+            liveResponse.setStatus(Response.Status.INVALID_CITY_ID);
+            return liveResponse;
+        }
+
         LiveResponse<City> cityLiveResponse = new LiveResponse<>();
         MutableLiveData<City> cityLiveData = new MutableLiveData<>();
         cityLiveResponse.setLiveData(cityLiveData);
@@ -171,7 +185,6 @@ public class CityRepository extends AbstractRepository {
         }
     }
 
-    // TODO: Delete this if isn't needed
     public LiveResponse<City> getCurrentLocation() {
         LiveResponse<City> cityLiveResponse = new LiveResponse<>();
         MutableLiveData<City> cityLiveData = new MutableLiveData<>();

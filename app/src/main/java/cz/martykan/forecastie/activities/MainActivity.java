@@ -455,8 +455,13 @@ public class MainActivity extends BaseActivity implements LocationListener {
     }
 
     private void selectLocation(City city) {
-        selectedCityId = city.getId();
-        preferences.setLastCityId(city.getId());
+        if ((city.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION) {
+            selectedCityId = CityRepository.CURRENT_CITY;
+            preferences.setLastCityId(CityRepository.CURRENT_CITY);
+        } else {
+            selectedCityId = city.getId();
+            preferences.setLastCityId(city.getId());
+        }
     }
 
     private void persistLocation(City city, boolean asCurrentLocation, boolean updateSelectedLocation) {
@@ -729,8 +734,7 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 assert city != null;
 
                 city.setCityUsage(city.getCityUsage() | City.USAGE_CURRENT_LOCATION);
-                // TODO: That's not enough, we need to know whether the user clicked the button or it was a background update
-                persistLocation(city, true, selectedCityId == city.getId());
+                persistLocation(city, true, selectedCityId == CityRepository.CURRENT_CITY);
             }
         });
     }

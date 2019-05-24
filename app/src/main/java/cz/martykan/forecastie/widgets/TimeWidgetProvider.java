@@ -17,6 +17,7 @@ import java.util.Locale;
 
 import cz.martykan.forecastie.activities.MainActivity;
 import cz.martykan.forecastie.R;
+import cz.martykan.forecastie.database.CityRepository;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.utils.LiveResponse;
 import cz.martykan.forecastie.utils.Preferences;
@@ -39,8 +40,8 @@ public class TimeWidgetProvider extends AbstractWidgetProvider {
         PendingIntent pendingIntent2 = PendingIntent.getActivity(context, 0, intent2, 0);
         remoteViews.setOnClickPendingIntent(R.id.widgetRoot, pendingIntent2);
 
-        int currentCityId = getCityId(context, widgetId, 0);
-        if (currentCityId != 0) {
+        int currentCityId = getCityId(context, widgetId, CityRepository.INVALID_CITY);
+        if (currentCityId != CityRepository.INVALID_CITY) {
             LiveResponse<Weather> weatherLiveResponse = getCurrentWeather(context, currentCityId);
             weatherLiveResponse.getLiveData().observeForever(new Observer<Weather>() {
                 @Override

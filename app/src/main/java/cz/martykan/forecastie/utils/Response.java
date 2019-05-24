@@ -30,5 +30,7 @@ public class Response {
         IO_EXCEPTION,
         JSON_EXCEPTION,
         CITY_NOT_FOUND,
+        INVALID_CITY_ID,
+        CITY_IS_NOW_INVALID,
     }
 }

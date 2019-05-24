@@ -9,6 +9,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -72,7 +73,11 @@ public class WeatherWorker extends ListenableWorker {
             List<LiveResponse<City>> liveResponses = new ArrayList<>();
 
             for (int cityId : usedCities) {
-                liveResponses.add(cityRepository.getCity(cityId));
+                if (cityId == CityRepository.CURRENT_CITY) {
+                    liveResponses.add(cityRepository.getCurrentLocation());
+                } else {
+                    liveResponses.add(cityRepository.getCity(cityId));
+                }
             }
 
             LiveData<List<LiveResponse<City>>> citiesLiveData = LiveResponse.onAllDone(liveResponses);
@@ -140,10 +145,17 @@ public class WeatherWorker extends ListenableWorker {
                                 assert city != null;
 
                                 city.setCityUsage(city.getCityUsage() | City.USAGE_CURRENT_LOCATION);
-                                cityRepository.persistCurrentLocation(city);
-                            }
 
-                            locationUpdateWaiter.run();
+                                Handler handler = new Handler();
+                                Runnable runnable = () -> {
+                                    cityRepository.persistCurrentLocation(city);
+                                    handler.post(locationUpdateWaiter);
+                                };
+
+                                new Thread(runnable).start();
+                            } else {
+                                locationUpdateWaiter.run();
+                            }
                         }
                     });
                 }

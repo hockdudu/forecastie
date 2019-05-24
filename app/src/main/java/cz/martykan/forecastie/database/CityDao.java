@@ -22,7 +22,7 @@ public interface CityDao {
     City findById(int id);
 
     @Nullable
-    @Query("SELECT * FROM city WHERE cityUsage & " + City.USAGE_CURRENT_LOCATION + " != 0")
+    @Query("SELECT * FROM city WHERE cityUsage & " + City.USAGE_CURRENT_LOCATION + " == " + City.USAGE_CURRENT_LOCATION)
     City findCurrentLocation();
 
     @Insert

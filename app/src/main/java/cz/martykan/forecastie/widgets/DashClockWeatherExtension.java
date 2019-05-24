@@ -19,6 +19,7 @@ import java.util.Date;
 
 import cz.martykan.forecastie.R;
 import cz.martykan.forecastie.activities.SplashActivity;
+import cz.martykan.forecastie.database.CityRepository;
 import cz.martykan.forecastie.models.City;
 import cz.martykan.forecastie.models.Weather;
 import cz.martykan.forecastie.utils.LiveResponse;
@@ -53,8 +54,8 @@ public class DashClockWeatherExtension extends DashClockExtension {
     protected void onUpdateData(int reason) {
         Log.v("DC-WeatherExtension", "Data update requested, reason: " + reason);
 
-        // TODO: Add check if 0
-        int cityId = AbstractWidgetProvider.getCityId(this, 0, 0);
+        int cityId = AbstractWidgetProvider.getCityId(this, AbstractWidgetProvider.DASHCLOCK_WIDGET_ID, CityRepository.INVALID_CITY);
+
         LiveResponse<City> cityLiveResponse = WidgetDataRepository.getCityRepository(this).getCity(cityId);
         cityLiveResponse.getLiveData().observeForever(new Observer<City>() {
             @Override

@@ -5,7 +5,6 @@ import android.appwidget.AppWidgetProviderInfo;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -55,19 +54,36 @@ public class WidgetConfigureActivity extends AppCompatActivity {
         citiesLiveResponse.getLiveData().observe(this, cities -> {
             assert cities != null;
 
+            // TODO: Add duplicate current location if it was explicitly added by the user (USAGE_USER)
             String[] cityNames = new String[cities.size()];
             int[] cityIds = new int[cities.size()];
 
-            Collections.sort(cities, (o1, o2) -> o1.getCity().compareTo(o2.getCity()));
+            Collections.sort(cities, (o1, o2) -> {
+                if ((o1.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION) {
+                    return -1;
+                } else if ((o2.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION) {
+                    return 1;
+                } else {
+                    return o1.getCity().compareTo(o2.getCity());
+                }
+            });
 
             // TODO: Add button to open activity if there's no city, or something like that
             for (int i = 0; i < cities.size(); i++) {
-                cityNames[i] = cities.get(i).toString();
-                cityIds[i] = cities.get(i).getId();
+                City city = cities.get(i);
+
+                if ((city.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION) {
+                    // TODO: Translate this string
+                    cityNames[i] = String.format("Current location (%s)", city.toString());
+                } else {
+                    cityNames[i] = city.toString();
+                }
+
+                cityIds[i] = city.getId();
             }
 
             arrayAdapter.addAll(cityNames);
-            citySpinner.setSelection(getCityIndex(cityIds));
+            citySpinner.setSelection(getDefaultSelectedCityIndex(cityIds));
         });
 
         citySpinner.setAdapter(arrayAdapter);
@@ -79,13 +95,17 @@ public class WidgetConfigureActivity extends AppCompatActivity {
             if (cities != null) {
                 if (selectedCityIndex != AdapterView.INVALID_POSITION) {
                     City selectedCity = cities.get(selectedCityIndex);
-                    selectedCity.setCityUsage(selectedCity.getCityUsage() | City.USAGE_WIDGET);
 
-                    onWidgetConfigured(selectedCity);
+                    if ((selectedCity.getCityUsage() & City.USAGE_CURRENT_LOCATION) == City.USAGE_CURRENT_LOCATION) {
+                        onWidgetConfigured(CityRepository.CURRENT_CITY);
+                    } else {
+                        selectedCity.setCityUsage(selectedCity.getCityUsage() | City.USAGE_WIDGET);
 
-                    Runnable runnable = () -> cityRepository.persistCity(selectedCity);
+                        Runnable runnable = () -> cityRepository.persistCity(selectedCity);
+                        new Thread(runnable).start();
 
-                    new Thread(runnable).start();
+                        onWidgetConfigured(selectedCity.getId());
+                    }
                 }
                 // TODO: What to do if there's no city (it's empty)?
             }
@@ -95,8 +115,8 @@ public class WidgetConfigureActivity extends AppCompatActivity {
         cancelButton.setOnClickListener(v -> finish());
     }
 
-    protected void onWidgetConfigured(City city) {
-        AbstractWidgetProvider.saveCityId(this, appWidgetId, city.getId());
+    protected void onWidgetConfigured(int cityId) {
+        AbstractWidgetProvider.saveCityId(this, appWidgetId, cityId);
 
         AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(this);
         AppWidgetProviderInfo appWidgetProviderInfo = appWidgetManager.getAppWidgetInfo(appWidgetId);
@@ -123,7 +143,7 @@ public class WidgetConfigureActivity extends AppCompatActivity {
         return appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID;
     }
 
-    protected int getCityIndex(int[] cityIds) {
+    protected int getDefaultSelectedCityIndex(int[] cityIds) {
         return 0;
     }
 }

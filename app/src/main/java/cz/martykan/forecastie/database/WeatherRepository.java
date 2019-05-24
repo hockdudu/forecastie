@@ -3,6 +3,7 @@ package cz.martykan.forecastie.database;
 import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -73,29 +74,41 @@ public class WeatherRepository extends AbstractRepository {
                     }
 
                     if (downloadedWeather != null) {
-                        // TODO: Fix SQL Exception!
                         /*
-                        What might happen: The downloaded weather is given a city, but the city is
+                        What happens: The downloaded weather is given a city, but the city is
                         deleted right before inserting it (on another thread). Again, this happens
                         mostly when opening the app on a new location. The app requests the current
                         weather, it's downloaded but at the same time there's a new location, so the
                         old one is deleted
                          */
-                        long id = weatherDao.insertAll(downloadedWeather)[0];
-                        downloadedWeather.setUid(id);
-                        city.setCurrentWeatherId(id);
-                        cityDao.persist(city);
+                        appDatabase.beginTransaction();
+                        try {
+                            if (cityDao.findById(city.getId()) != null) {
+                                long id = weatherDao.insertAll(downloadedWeather)[0];
+                                downloadedWeather.setUid(id);
+                                city.setCurrentWeatherId(id);
+                                cityDao.persist(city);
 
-                        if (currentWeather != null) {
-                            weatherDao.delete(currentWeather);
+                                if (currentWeather != null) {
+                                    weatherDao.delete(currentWeather);
+                                }
+
+                                currentWeather = downloadedWeather;
+                            } else {
+                                // TODO: Either fix this multithreading problem or fail silently
+                                weatherLiveResponse.setStatus(Response.Status.CITY_IS_NOW_INVALID);
+                                Log.w("WeatherRepository", String.format("Given city \"%s\" [%d] isn't valid anymore", city.toString(), city.getId()));
+                                currentWeather = null;
+                            }
+                            appDatabase.setTransactionSuccessful();
+                        } finally {
+                            appDatabase.endTransaction();
                         }
-
-                        currentWeather = downloadedWeather;
                     }
                 } else {
                     // Triggers observers
                     // Setting status isn't needed, because it already is something else than SUCCESS
-                    weatherLiveResponse.setLiveData(null);
+                    weatherLiveData.postValue(null);
                 }
             } else {
                 weatherLiveResponse.setStatus(Response.Status.SUCCESS);

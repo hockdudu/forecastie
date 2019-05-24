@@ -1,13 +1,13 @@
 package cz.martykan.forecastie.activities;
 
-import cz.martykan.forecastie.models.City;
+import cz.martykan.forecastie.database.CityRepository;
 import cz.martykan.forecastie.widgets.AbstractWidgetProvider;
 
 public class WidgetDashClockConfigureActivity extends WidgetConfigureActivity {
 
     @Override
-    protected void onWidgetConfigured(City city) {
-        AbstractWidgetProvider.saveCityId(this, 0, city.getId());
+    protected void onWidgetConfigured(int cityId) {
+        AbstractWidgetProvider.saveCityId(this, 0, cityId);
         finish();
     }
 
@@ -19,8 +19,8 @@ public class WidgetDashClockConfigureActivity extends WidgetConfigureActivity {
     }
 
     @Override
-    protected int getCityIndex(int[] cityIds) {
-        int cityId = AbstractWidgetProvider.getCityId(this, 0, 0);
+    protected int getDefaultSelectedCityIndex(int[] cityIds) {
+        int cityId = AbstractWidgetProvider.getCityId(this, AbstractWidgetProvider.DASHCLOCK_WIDGET_ID, CityRepository.INVALID_CITY);
         int index = 0;
 
         for (int i = 0; i < cityIds.length; i++) {

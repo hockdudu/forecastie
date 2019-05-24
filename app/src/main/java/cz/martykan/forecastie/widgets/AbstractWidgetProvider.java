@@ -34,6 +34,8 @@ import static cz.martykan.forecastie.widgets.WidgetDataRepository.getWeatherRepo
 
 public abstract class AbstractWidgetProvider extends AppWidgetProvider {
 
+    public static final int DASHCLOCK_WIDGET_ID = 0;
+
     protected static final String PREFS_NAME = "Widget";
 
     @Override
