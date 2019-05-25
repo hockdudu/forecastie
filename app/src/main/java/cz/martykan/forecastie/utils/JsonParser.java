@@ -1,8 +1,8 @@
 package cz.martykan.forecastie.utils;
 
-import android.content.res.Resources;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.util.SparseArray;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -106,18 +106,25 @@ public class JsonParser {
         return weather;
     }
 
-    public static Weather[] convertJsonToWeathers(JSONObject weathersObject) {
+    public static Weather[] convertJsonToWeathers(JSONObject weathersObject, List<City> cities) {
         Weather[] weathers;
 
+        SparseArray<City> citySparseArray = new SparseArray<>(cities.size());
+        for (City city : cities) {
+            citySparseArray.put(city.getId(), city);
+        }
+
         try {
-            JSONArray array = weathersObject.getJSONArray("list");
-            weathers = new Weather[array.length()];
+            JSONArray weathersJSONArray = weathersObject.getJSONArray("list");
+            weathers = new Weather[weathersJSONArray.length()];
 
-            for (int i = 0; i < array.length(); i++) {
-                JSONObject weatherObject = (JSONObject) array.get(i);
+            for (int i = 0; i < weathersJSONArray.length(); i++) {
+                JSONObject weatherObject = (JSONObject) weathersJSONArray.get(i);
 
-                City city = convertJsonToCity(weatherObject);
-                Weather weather = convertJsonToWeather(weatherObject, city);
+                City parsedCity = convertJsonToCity(weatherObject);
+                City givenCity = citySparseArray.get(parsedCity.getId());
+
+                Weather weather = convertJsonToWeather(weatherObject, givenCity != null ? givenCity : parsedCity);
                 weathers[i] = weather;
             }
         } catch (JSONException e) {

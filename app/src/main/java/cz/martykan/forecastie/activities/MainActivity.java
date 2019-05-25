@@ -299,6 +299,9 @@ public class MainActivity extends BaseActivity implements LocationListener {
                 }
             });
 
+            TextView[] weatherIcons = new TextView[cities.size()];
+            TextView[] temperatures = new TextView[cities.size()];
+
             for (int i = 0; i < cities.size(); i++) {
                 City city = cities.get(i);
                 // TODO: Maybe a method on city could be added
@@ -309,11 +312,21 @@ public class MainActivity extends BaseActivity implements LocationListener {
 
                 TextView weatherIcon = drawerItem.findViewById(R.id.weatherIcon);
                 weatherIcon.setTypeface(weatherFont);
+                weatherIcons[i] = weatherIcon;
 
                 TextView cityName = drawerItem.findViewById(R.id.cityName);
                 cityName.setText(city.toString());
 
                 ImageView removeButton = drawerItem.findViewById(R.id.removeLocationIcon);
+
+                TextView temperature = drawerItem.findViewById(R.id.temperature);
+                temperatures[i] = temperature;
+
+                drawerItem.setOnClickListener(v -> {
+                    drawerLayout.closeDrawers();
+                    selectLocation(city);
+                    refreshWeather();
+                });
 
                 if (isCityCurrentLocation) {
                     ImageView currentLocation = drawerItem.findViewById(R.id.currentLocationIcon);
@@ -384,28 +397,25 @@ public class MainActivity extends BaseActivity implements LocationListener {
                         new Thread(runnable).start();
                     });
                 }
-
-
-                TextView temperature = drawerItem.findViewById(R.id.temperature);
-
-                // TODO: Use bulk download, https://openweathermap.org/current#severalid
-                LiveResponse<Weather> weatherLiveData = weatherRepository.getCurrentWeather(city, false);
-
-                weatherLiveData.getLiveData().observe(this, weather -> {
-                    handleConnectionStatus(weatherLiveData.getStatus());
-
-                    if (weather != null) {
-                        weatherIcon.setText(TextFormatting.getIcon(getResources(), weather));
-                        temperature.setText(TextFormatting.getTemperature(getResources(), preferences, weather));
-                    }
-                });
-
-                drawerItem.setOnClickListener(v -> {
-                    drawerLayout.closeDrawers();
-                    selectLocation(city);
-                    refreshWeather();
-                });
             }
+
+            LiveResponse<List<Weather>> currentWeathers = weatherRepository.getCurrentWeathers(cities, false);
+            currentWeathers.getLiveData().observe(this, weathers -> {
+                assert weathers != null;
+
+                // The response status might not be SUCCESS, but we use the given weathers nonetheless
+                // Better showing old info than not showing anything at all!
+                for (Weather weather : weathers) {
+                    int cityIndex = cities.indexOf(weather.getCity());
+
+                    if (cityIndex == -1) {
+                        continue;
+                    }
+
+                    weatherIcons[cityIndex].setText(TextFormatting.getIcon(getResources(), weather));
+                    temperatures[cityIndex].setText(TextFormatting.getTemperature(getResources(), preferences, weather));
+                }
+            });
         });
     }
 

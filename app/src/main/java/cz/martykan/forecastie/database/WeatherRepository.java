@@ -4,6 +4,7 @@ import android.arch.lifecycle.MutableLiveData;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.util.SparseArray;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -29,8 +30,7 @@ public class WeatherRepository extends AbstractRepository {
 
     private final static int UPDATE_THRESHOLD = 30 * 1000;
 
-    // TODO: Use dagger2, https://developer.android.com/jetpack/docs/guide#manage-dependencies
-    public WeatherRepository(WeatherDao weatherDao, CityDao cityDao, Context context) {
+        public WeatherRepository(WeatherDao weatherDao, CityDao cityDao, Context context) {
         super(context);
         this.weatherDao = weatherDao;
         this.cityDao = cityDao;
@@ -40,6 +40,13 @@ public class WeatherRepository extends AbstractRepository {
         weatherDao.insertAll(weathers);
     }
 
+    /**
+     * Gets the Weather for the given City. It first loads the cached Weather, but if it's too old,
+     * then a newer one is downloaded.
+     * @param city The City where to get the weather from
+     * @param forceDownload If true, it will download the newest one even if the cached isn't old
+     * @return The Weather wrapped in a LiveResponse
+     */
     // TODO: Get forecast as a fallback if current weather is too old and there's no internet
     public LiveResponse<Weather> getCurrentWeather(City city, boolean forceDownload) {
         LiveResponse<Weather> weatherLiveResponse = new LiveResponse<>();
@@ -128,7 +135,13 @@ public class WeatherRepository extends AbstractRepository {
         return weatherLiveResponse;
     }
 
-    // TODO: Use this in more places
+    /**
+     * Downloads the Weathers from the given Cities in one batch request. If there's a cached
+     * Weather, then it will be use instead
+     * @param cities List of cities to download the weather from
+     * @param forceDownload If true, the cache will be ignored
+     * @return List with the Weathers, wrapped in a LiveResponse
+     */
     public LiveResponse<List<Weather>> getCurrentWeathers(List<City> cities, boolean forceDownload) {
         LiveResponse<List<Weather>> weathersLiveResponse = new LiveResponse<>();
         MutableLiveData<List<Weather>> weathersLiveData = new MutableLiveData<>();
@@ -136,7 +149,7 @@ public class WeatherRepository extends AbstractRepository {
 
         Runnable runnable = () -> {
             List<City> outdatedCities;
-            List<Weather> currentWeathers = new ArrayList<>();
+            SparseArray<Weather> weatherSparseArray = new SparseArray<>();
 
             if (forceDownload) {
                 outdatedCities = cities;
@@ -150,11 +163,16 @@ public class WeatherRepository extends AbstractRepository {
                         currentWeather = weatherDao.findByUid(city.getCurrentWeatherId());
                     }
 
-                    if (currentWeather == null || isWeatherTooOld(currentWeather)) {
-                        outdatedCities.add(city);
-                    } else {
-                        currentWeathers.add(currentWeather);
+                    if (currentWeather != null) {
+                        weatherSparseArray.put(city.getId(), currentWeather);
+
+                        if (!isWeatherTooOld(currentWeather)) {
+                            currentWeather.setCity(city);
+                            continue;
+                        }
                     }
+
+                    outdatedCities.add(city);
                 }
             }
 
@@ -166,20 +184,30 @@ public class WeatherRepository extends AbstractRepository {
 
                     if (weathersResponse.getStatus() != Response.Status.SUCCESS) {
                         weathersLiveResponse.setResponse(weathersResponse);
-                        break;
+                        continue;
                     }
 
                     try {
                         // TODO: Update UV Index?
                         JSONObject jsonObject = new JSONObject(weathersResponse.getDataString());
-                        Weather[] weathers = JsonParser.convertJsonToWeathers(jsonObject);
-                        currentWeathers.addAll(Arrays.asList(weathers));
+                        Weather[] weathers = JsonParser.convertJsonToWeathers(jsonObject, cities);
+                        for (Weather weather : weathers) {
+                            weatherSparseArray.put(weather.getCity().getId(), weather);
+                        }
                     } catch (JSONException e) {
                         weathersLiveResponse.setStatus(Response.Status.JSON_EXCEPTION);
                         e.printStackTrace();
-                        break;
                     }
                 }
+            }
+
+            if (weathersLiveResponse.getStatus() == null) {
+                weathersLiveResponse.setStatus(Response.Status.SUCCESS);
+            }
+
+            ArrayList<Weather> currentWeathers = new ArrayList<>(weatherSparseArray.size());
+            for (int i = 0; i < weatherSparseArray.size(); i++) {
+                currentWeathers.add(weatherSparseArray.valueAt(i));
             }
 
             weathersLiveData.postValue(currentWeathers);
